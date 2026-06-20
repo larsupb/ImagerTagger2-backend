@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "imagetagger-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.0",
+    "Pillow>=10.0",
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "transformers>=4.40",
+    "huggingface-hub>=0.20",
+    "onnxruntime-gpu>=1.17",
+    "spandrel>=0.4",
+    "rembg>=2.0",
+    "imageio[ffmpeg]>=2.30",
+    "python-multipart>=0.0.9",
+    "sse-starlette>=2.0",
+]
+
+[dependency-groups]
+test = ["pytest>=9.0"]

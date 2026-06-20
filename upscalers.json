@@ -1,0 +1,50 @@
+[
+  {
+    "name": "comfyui-backend",
+    "filename": null,
+    "scale_factor": 4,
+    "url": null
+  },
+  {
+    "name": "NMKD_Siax_200k_4x",
+    "filename": "4x_NMKD-Siax_200k.pth",
+    "scale_factor": 4,
+    "url": "https://huggingface.co/gemasai/4x_NMKD-Siax_200k/resolve/main/4x_NMKD-Siax_200k.pth?download=true"
+  },
+  {
+    "name": "FaceUpDAT_4x",
+    "filename": "4xFaceUpDAT.pth",
+    "scale_factor": 4,
+    "url": "https://huggingface.co/tomjackson2023/upscale_models/resolve/3c8d57db3914a46dd851fccf34f806eedca0fea4/4xFaceUpDAT.pth"
+  },
+  {
+    "name": "DeJPG_OmniSR_1x",
+    "filename": "1xDeJPG_OmniSR.pth",
+    "scale_factor": 1,
+    "url": "https://huggingface.co/tomjackson2023/test/resolve/3f990fb6a1897567dce5e17b37238e4c40e32cc9/1xDeJPG_OmniSR.pth"
+  },
+  {
+    "name": "CGIMasterV1",
+    "filename": "2x-CGIMaster-v1.pth",
+    "scale_factor": 2,
+    "url": "https://objectstorage.us-phoenix-1.oraclecloud.com/n/ax6ygfvpvzka/b/open-modeldb-files/o/2x-CGIMaster-v1.pth"
+  },
+  {
+    "name": "NKMD_PatchySharp",
+    "filename": "4x_NMKD-PatchySharp_240K.pth",
+    "scale_factor": 4,
+    "url": null
+  },
+  {
+    "name": "RealESRGAN_x4Plus_Anime_6B",
+    "filename": "RealESRGAN_x4plus_anime_6B.pth",
+    "scale_factor": 4,
+    "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth"
+  },
+  {
+    "name": "RealWebPhoto_v4_dat2_4x",
+    "filename": "4xRealWebPhoto_v4_dat2.safetensors",
+    "scale_factor": 4,
+    "url": "https://huggingface.co/Phips/4xRealWebPhoto_v4_dat2/resolve/main/4xRealWebPhoto_v4_dat2.safetensors"
+  }
+]

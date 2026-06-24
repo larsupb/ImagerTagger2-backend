@@ -13,7 +13,93 @@
     "scale_factor": 1,
     "url": null,
     "workflow_file": "lib/comfyui/workflows/image_enhance.json",
-    "display_name": "ComfyUI Enhance"
+    "display_name": "ComfyUI Enhance",
+    "params": [
+      {
+        "key": "denoise",
+        "label": "Denoise",
+        "type": "float",
+        "node_id": "158:77",
+        "input_name": "denoise",
+        "default": 0.35,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "hint": "Lower = preserve original, higher = more transformation"
+      },
+      {
+        "key": "steps",
+        "label": "Steps",
+        "type": "int",
+        "node_id": "158:77",
+        "input_name": "steps",
+        "default": 5,
+        "min": 1,
+        "max": 50
+      },
+      {
+        "key": "seed",
+        "label": "Seed",
+        "type": "int",
+        "node_id": "158:77",
+        "input_name": "seed",
+        "default": -1,
+        "hint": "-1 = random each time"
+      },
+      {
+        "key": "cfg",
+        "label": "CFG Scale",
+        "type": "float",
+        "node_id": "158:77",
+        "input_name": "cfg",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 20.0,
+        "step": 0.5
+      },
+      {
+        "key": "sampler_name",
+        "label": "Sampler",
+        "type": "select",
+        "node_id": "158:77",
+        "input_name": "sampler_name",
+        "default": "euler",
+        "options": ["euler", "euler_ancestral", "dpmpp_3m_sde", "dpmpp_2m", "dpmpp_2m_sde", "heun", "dpm_2", "dpm_2_ancestral", " LMS", "LMS Karras", "dpm_fast", "dpm_adaptive", "dpmpp_2m_karras", "dpmpp_3m_sde_karras", "unipc", "unipc"]
+      },
+      {
+        "key": "scheduler",
+        "label": "Scheduler",
+        "type": "select",
+        "node_id": "158:77",
+        "input_name": "scheduler",
+        "default": "simple",
+        "options": ["simple", "karras", "exponential", "normal", "exponential_int", "simple_beta", "simple_quad", "simple_cubic", "linear_quad", "normal_beta", "karras_beta", "exponential_beta", "simple_offset_noise", "vp_beta", "sgm_uniform"]
+      },
+      {
+        "key": "enhance_instruction",
+        "label": "Enhancement Instruction",
+        "type": "text",
+        "node_id": "150",
+        "input_name": "value",
+        "default": "same person and expression, improve lighting"
+      },
+      {
+        "key": "modifications",
+        "label": "Modifications",
+        "type": "text",
+        "node_id": "151",
+        "input_name": "value",
+        "default": ""
+      },
+      {
+        "key": "quality_tags",
+        "label": "Quality Tags",
+        "type": "text",
+        "node_id": "152",
+        "input_name": "value",
+        "default": "Subtle high resolution, histogram equalization, color grade, white balance correction, micro-contrast, lens distortion correction, clean digital file, remove blur and noise, remove jpeg artifacts, unsharp mask, neutral and perfectly tuned color, soft studio lighting, subtle background blur"
+      }
+    ]
   },
   {
     "name": "NMKD_Siax_200k_4x",

@@ -1,9 +1,19 @@
 [
   {
-    "name": "comfyui-backend",
+    "name": "comfyui-seedvr2",
     "filename": null,
     "scale_factor": 4,
-    "url": null
+    "url": null,
+    "workflow_file": "lib/comfyui/workflows/seedvr2.json",
+    "display_name": "ComfyUI SeedVR2"
+  },
+  {
+    "name": "comfyui-flux2-edit",
+    "filename": null,
+    "scale_factor": 1,
+    "url": null,
+    "workflow_file": "lib/comfyui/workflows/image_enhance.json",
+    "display_name": "ComfyUI Enhance"
   },
   {
     "name": "NMKD_Siax_200k_4x",

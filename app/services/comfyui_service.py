@@ -12,7 +12,11 @@ from lib.upscaling.util import scale_to_megapixels
 
 
 def upscale_with_comfyui(
-    session: Session, index: int, target_megapixels: float = 2.0
+    session: Session,
+    index: int,
+    target_megapixels: float = 2.0,
+    workflow_file: str = None,
+    cancel_check=None,
 ) -> str:
     """Upscale image using ComfyUI workflow."""
     settings = comfyui_settings()
@@ -21,6 +25,11 @@ def upscale_with_comfyui(
 
     if not url:
         raise ValueError("ComfyUI URL not configured")
+
+    if workflow_file:
+        workflow_file = os.path.join(
+            os.path.dirname(__file__), "..", "..", workflow_file
+        )
 
     client = ComfyClient(url, api_token)
 
@@ -39,6 +48,7 @@ def upscale_with_comfyui(
         target_megapixels=target_megapixels,
         input_width=img_width,
         input_height=img_height,
+        workflow_file=workflow_file,
     )
 
     result = client.wait_for_completion(prompt_id)

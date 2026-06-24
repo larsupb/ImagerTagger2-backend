@@ -15,30 +15,56 @@ DEFAULT_WORKFLOW_FILE = os.path.join(
 )
 
 
-def get_workflow() -> dict:
+def get_workflow(workflow_file: str = None) -> dict:
     """
-    Load workflow from settings or use default.
+    Load workflow from path or settings or use default.
+
+    Args:
+        workflow_file: Path to workflow JSON file. Can be absolute or relative
+            to the workflows directory.
 
     Returns:
         Workflow dictionary (API format)
     """
-    settings = comfyui_settings()
-    workflow_file = settings.get("workflow_file")
+    path = None
 
-    if workflow_file and os.path.exists(workflow_file):
-        with open(workflow_file, "r") as f:
-            return json.load(f)
+    if workflow_file:
+        if os.path.isabs(workflow_file):
+            path = workflow_file
+        else:
+            path = os.path.join(os.path.dirname(__file__), "workflows", workflow_file)
 
-    if os.path.exists(DEFAULT_WORKFLOW_FILE):
-        with open(DEFAULT_WORKFLOW_FILE, "r") as f:
-            return json.load(f)
+    if not path or not os.path.exists(path):
+        settings = comfyui_settings()
+        configured = settings.get("workflow_file")
+        if configured and os.path.exists(configured):
+            path = configured
 
-    raise FileNotFoundError(
-        f"No workflow file found. Expected at {DEFAULT_WORKFLOW_FILE} or custom path."
-    )
+    if not path or not os.path.exists(path):
+        path = DEFAULT_WORKFLOW_FILE
+
+    with open(path, "r") as f:
+        return json.load(f)
 
 
 import uuid
+
+
+def _find_node_by_class(workflow: dict, class_type: str) -> tuple[str, dict] | None:
+    """Find the first node with the given class_type. Returns (node_id, node)."""
+    for node_id, node in workflow.items():
+        if isinstance(node, dict) and node.get("class_type") == class_type:
+            return node_id, node
+    return None
+
+
+def _find_nodes_by_class(workflow: dict, class_type: str) -> list[tuple[str, dict]]:
+    """Find all nodes with the given class_type."""
+    return [
+        (node_id, node)
+        for node_id, node in workflow.items()
+        if isinstance(node, dict) and node.get("class_type") == class_type
+    ]
 
 
 def inject_image(
@@ -50,28 +76,50 @@ def inject_image(
 ) -> dict:
     """
     Inject the image filename into the workflow's LoadImage node
-    and set random seed for unique results.
+    and set resolution/megapixels inputs appropriately.
 
     Args:
         workflow: The workflow dictionary (API format)
         image_filename: The filename of the image to process
-        target_megapixels: Target output megapixels (calculates resolution)
-        input_width: Input image width (required if target_megapixels set)
-        input_height: Input image height (required if target_megapixels set)
+        target_megapixels: Target output megapixels
+        input_width: Input image width
+        input_height: Input image height
 
     Returns:
-        Modified workflow dict with image filename set and random seed
+        Modified workflow dict with image filename and resolution injected
     """
     result = copy.deepcopy(workflow)
 
-    if "10" in result and "inputs" in result["10"]:
-        result["10"]["inputs"]["image"] = image_filename
+    load_image = _find_node_by_class(result, "LoadImage")
+    if load_image:
+        node_id, node = load_image
+        node["inputs"]["image"] = image_filename
 
     if target_megapixels and input_width and input_height:
         resolution = calculate_resolution_for_megapixels(
             input_width, input_height, target_megapixels
         )
+
+        img_scale_nodes = _find_nodes_by_class(result, "ImageScaleToTotalPixels")
+        if img_scale_nodes:
+            for node_id, node in img_scale_nodes:
+                if "megapixels" in node["inputs"]:
+                    node["inputs"]["megapixels"] = target_megapixels
+
+        resolution_calc_nodes = _find_nodes_by_class(result, "PixelResolutionCalculator")
+        if resolution_calc_nodes:
+            for node_id, node in resolution_calc_nodes:
+                if "megapixels" in node["inputs"]:
+                    node["inputs"]["megapixels"] = target_megapixels
+
         if "1" in result and "inputs" in result["1"]:
-            result["1"]["inputs"]["resolution"] = resolution
+            if "resolution" in result["1"]["inputs"]:
+                result["1"]["inputs"]["resolution"] = resolution
+
+    seed = str(uuid.uuid4().int)[:18]
+    sampler_nodes = _find_nodes_by_class(result, "KSampler")
+    for node_id, node in sampler_nodes:
+        if "seed" in node["inputs"]:
+            node["inputs"]["seed"] = int(seed)
 
     return result

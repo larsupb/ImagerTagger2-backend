@@ -1,0 +1,293 @@
+{
+  "113": {
+    "inputs": {
+      "image": "IMG_9080.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "150": {
+    "inputs": {
+      "value": "same person and expression, improve lighting"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "stable person"
+    }
+  },
+  "151": {
+    "inputs": {
+      "value": ""
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "modifications"
+    }
+  },
+  "152": {
+    "inputs": {
+      "value": "Subtle high resolution, histogram equalization, color grade, white balance correction, micro-contrast, lens distortion correction, clean digital file, remove blur and noise, remove jpeg artifacts, unsharp mask, neutral and perfectly tuned color, soft studio lighting, subtle background blur"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "quality tags"
+    }
+  },
+  "157": {
+    "inputs": {
+      "images": [
+        "158:8",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "158:8": {
+    "inputs": {
+      "samples": [
+        "158:77",
+        0
+      ],
+      "vae": [
+        "158:10",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "158:10": {
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "158:114": {
+    "inputs": {
+      "pixels": [
+        "158:120",
+        0
+      ],
+      "vae": [
+        "158:10",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Enc"
+    }
+  },
+  "158:131": {
+    "inputs": {
+      "megapixels": 1,
+      "aspect_ratio_width": 3,
+      "aspect_ratio_height": 4,
+      "divided_by": 8
+    },
+    "class_type": "PixelResolutionCalculator",
+    "_meta": {
+      "title": "PixelResolutionCalculator"
+    }
+  },
+  "158:12": {
+    "inputs": {
+      "unet_name": "flux-2-klein-9b.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "158:100": {
+    "inputs": {
+      "text": "oversaturated, Animation, semi-realism, wrong finger, wrong anatomy, wrong genitalia, body deformity, amputation, bad hands, blurry, jpeg artifacts, compression noise, plastic skin, AI upscaling artifacts, waxy texture",
+      "clip": ["158:149", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)"
+    }
+  },
+  "158:112": {
+    "inputs": {
+      "conditioning": [
+        "158:100",
+        0
+      ],
+      "latent": [
+        "158:114",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent (Negative)"
+    }
+  },
+  "158:98": {
+    "inputs": {
+      "conditioning": [
+        "158:6",
+        0
+      ],
+      "latent": [
+        "158:114",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent (Positive)"
+    }
+  },
+  "158:160": {
+    "inputs": {
+      "conditioning": [
+        "158:98",
+        0
+      ],
+      "latent": [
+        "158:114",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "ReferenceLatent (Chained Enhancement)"
+    }
+  },
+  "158:120": {
+    "inputs": {
+      "upscale_method": "bilinear",
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "image": [
+        "113",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "Scale Image to Total Pixels"
+    }
+  },
+  "158:130": {
+    "inputs": {
+      "width": [
+        "158:131",
+        0
+      ],
+      "height": [
+        "158:131",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "158:77": {
+    "inputs": {
+      "seed": 625208114797675,
+      "steps": 5,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.35,
+      "model": [
+        "158:12",
+        0
+      ],
+      "positive": [
+        "158:160",
+        0
+      ],
+      "negative": [
+        "158:112",
+        0
+      ],
+      "latent_image": [
+        "158:114",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "158:6": {
+    "inputs": {
+      "text": [
+        "158:154",
+        0
+      ],
+      "clip": [
+        "158:149",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "158:149": {
+    "inputs": {
+      "clip_name": "Qwen3-8B-Q5_K_M.gguf",
+      "type": "flux2"
+    },
+    "class_type": "CLIPLoaderGGUF",
+    "_meta": {
+      "title": "CLIPLoader (GGUF)"
+    }
+  },
+  "158:153": {
+    "inputs": {
+      "string_a": [
+        "150",
+        0
+      ],
+      "string_b": [
+        "151",
+        0
+      ],
+      "delimiter": ", "
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Concatenate Text"
+    }
+  },
+  "158:154": {
+    "inputs": {
+      "string_a": [
+        "158:153",
+        0
+      ],
+      "string_b": [
+        "152",
+        0
+      ],
+      "delimiter": ", "
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Concatenate Text"
+    }
+  }
+}

@@ -44,9 +44,10 @@ class ComfyClient:
         target_megapixels: float = None,
         input_width: int = None,
         input_height: int = None,
+        workflow_file: str = None,
     ) -> str:
         """Submit a workflow to ComfyUI for execution."""
-        workflow = get_workflow()
+        workflow = get_workflow(workflow_file)
         workflow_with_image = inject_image(
             workflow,
             image_filename,

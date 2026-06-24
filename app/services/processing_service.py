@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -7,6 +8,33 @@ from PIL import Image
 from app.sessions import Session
 from app.config import read_settings
 from app.services.version_service import create_version_backup
+
+
+_UPSCALERS_CACHE: list[dict] | None = None
+
+
+def _get_upscalers() -> list[dict]:
+    global _UPSCALERS_CACHE
+    if _UPSCALERS_CACHE is None:
+        path = os.path.join(os.path.dirname(__file__), "..", "..", "upscalers.json")
+        with open(path) as f:
+            _UPSCALERS_CACHE = json.load(f)
+    return _UPSCALERS_CACHE
+
+
+def _is_comfyui_upscaler(name: str) -> bool:
+    if name in ("comfyui-backend", "comfyui-seedvr2"):
+        return True
+    if name.startswith("comfyui-"):
+        return True
+    return False
+
+
+def _get_workflow_file(upscaler_name: str) -> str | None:
+    for entry in _get_upscalers():
+        if entry.get("name") == upscaler_name:
+            return entry.get("workflow_file")
+    return None
 
 
 def upscale_image(
@@ -23,10 +51,13 @@ def upscale_image(
     upscaler = upscaler_name or settings.get("upscaler", "NMKD_Siax_200k_4x")
     target_mp = target_megapixels or settings.get("upscale_target_megapixels", 2.0)
 
-    if upscaler == "comfyui-backend":
+    if _is_comfyui_upscaler(upscaler):
         from app.services import comfyui_service
 
-        return comfyui_service.upscale_with_comfyui(session, index, target_mp, cancel_check=cancel_check)
+        workflow_file = _get_workflow_file(upscaler)
+        return comfyui_service.upscale_with_comfyui(
+            session, index, target_mp, workflow_file=workflow_file, cancel_check=cancel_check
+        )
 
     from lib.upscaling import upscale_image as do_upscale
 

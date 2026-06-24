@@ -74,7 +74,7 @@ async def batch_process(
                         )
                         target_mp = settings.get("upscale_target_megapixels", 2.0)
 
-                        if upscaler_name == "comfyui-backend":
+                        if upscaler_name.startswith("comfyui-"):
                             from app.services import processing_service
 
                             await asyncio.to_thread(

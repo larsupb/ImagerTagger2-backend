@@ -29,6 +29,7 @@ DEFAULTS = {
         "api_token": "",
         "workflow_file": "",
     },
+    "comfyui_fparams": {},
     "ideogram_settings": {
         "prompt": None,
     },

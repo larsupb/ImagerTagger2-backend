@@ -16,6 +16,7 @@ def upscale_with_comfyui(
     index: int,
     target_megapixels: float = 2.0,
     workflow_file: str = None,
+    upscaler_name: str = None,
     cancel_check=None,
 ) -> str:
     """Upscale image using ComfyUI workflow."""
@@ -30,6 +31,9 @@ def upscale_with_comfyui(
         workflow_file = os.path.join(
             os.path.dirname(__file__), "..", "..", workflow_file
         )
+
+    fparams = settings.get("comfyui_fparams", {})
+    workflow_params = fparams.get(upscaler_name, {}) if upscaler_name else {}
 
     client = ComfyClient(url, api_token)
 
@@ -49,6 +53,7 @@ def upscale_with_comfyui(
         input_width=img_width,
         input_height=img_height,
         workflow_file=workflow_file,
+        params=workflow_params,
     )
 
     result = client.wait_for_completion(prompt_id)

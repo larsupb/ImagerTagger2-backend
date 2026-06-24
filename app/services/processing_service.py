@@ -56,7 +56,7 @@ def upscale_image(
 
         workflow_file = _get_workflow_file(upscaler)
         return comfyui_service.upscale_with_comfyui(
-            session, index, target_mp, workflow_file=workflow_file, cancel_check=cancel_check
+            session, index, target_mp, workflow_file=workflow_file, upscaler_name=upscaler, cancel_check=cancel_check
         )
 
     from lib.upscaling import upscale_image as do_upscale

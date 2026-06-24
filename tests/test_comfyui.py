@@ -91,6 +91,39 @@ def test_comfy_client_download_output_method():
     assert callable(client.download_output)
 
 
+def test_inject_params():
+    """Test that params are injected into the correct workflow nodes."""
+    from lib.comfyui.workflow import inject_image, inject_params, get_workflow
+
+    workflow = get_workflow("image_enhance.json")
+    params = {"denoise": 0.5, "steps": 10, "seed": 42}
+    result = inject_image(workflow, "test.jpg", target_megapixels=1.0, input_width=512, input_height=512)
+
+    params_result = inject_params(result, params)
+
+    sampler_found = False
+    for node_id, node in params_result.items():
+        if isinstance(node, dict) and node.get("class_type") == "KSampler":
+            sampler_found = True
+            assert node["inputs"]["denoise"] == 0.5, f"denoise={node['inputs']['denoise']}, expected 0.5"
+            assert node["inputs"]["steps"] == 10, f"steps={node['inputs']['steps']}, expected 10"
+            assert node["inputs"]["seed"] == 42, f"seed={node['inputs']['seed']}, expected 42"
+    assert sampler_found, "No KSampler node found"
+
+
+def test_inject_params_text():
+    """Test that text params are injected into PrimitiveStringMultiline nodes."""
+    from lib.comfyui.workflow import inject_image, inject_params, get_workflow
+
+    workflow = get_workflow("image_enhance.json")
+    params = {"value": "enhance details, sharpen features"}
+    result = inject_image(workflow, "test.jpg", target_megapixels=1.0, input_width=512, input_height=512)
+
+    params_result = inject_params(result, params)
+
+    assert params_result["150"]["inputs"]["value"] == "enhance details, sharpen features"
+
+
 if __name__ == "__main__":
     import traceback
 

@@ -67,12 +67,38 @@ def _find_nodes_by_class(workflow: dict, class_type: str) -> list[tuple[str, dic
     ]
 
 
+def inject_params(workflow: dict, params: dict) -> dict:
+    """
+    Inject workflow-specific parameters into nodes.
+
+    Args:
+        workflow: Workflow dict already processed by inject_image()
+        params: Flat dict of {key: value} from settings
+
+    Returns:
+        Modified workflow dict with params injected
+    """
+    result = copy.deepcopy(workflow)
+
+    for key, value in params.items():
+        if value is None:
+            continue
+
+        for node_id, node in result.items():
+            if isinstance(node, dict) and "inputs" in node:
+                if key in node["inputs"]:
+                    node["inputs"][key] = value
+
+    return result
+
+
 def inject_image(
     workflow: dict,
     image_filename: str,
     target_megapixels: float = None,
     input_width: int = None,
     input_height: int = None,
+    params: dict = None,
 ) -> dict:
     """
     Inject the image filename into the workflow's LoadImage node
@@ -84,6 +110,7 @@ def inject_image(
         target_megapixels: Target output megapixels
         input_width: Input image width
         input_height: Input image height
+        params: Flat dict of {key: value} from settings to inject into nodes
 
     Returns:
         Modified workflow dict with image filename and resolution injected
@@ -121,5 +148,8 @@ def inject_image(
     for node_id, node in sampler_nodes:
         if "seed" in node["inputs"]:
             node["inputs"]["seed"] = int(seed)
+
+    if params:
+        result = inject_params(result, params)
 
     return result

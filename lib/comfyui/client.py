@@ -45,6 +45,7 @@ class ComfyClient:
         input_width: int = None,
         input_height: int = None,
         workflow_file: str = None,
+        params: dict = None,
     ) -> str:
         """Submit a workflow to ComfyUI for execution."""
         workflow = get_workflow(workflow_file)
@@ -54,6 +55,7 @@ class ComfyClient:
             target_megapixels=target_megapixels,
             input_width=input_width,
             input_height=input_height,
+            params=params,
         )
 
         response = requests.post(

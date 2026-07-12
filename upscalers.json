@@ -8,12 +8,12 @@
     "display_name": "ComfyUI SeedVR2"
   },
   {
-    "name": "comfyui-flux2-edit",
+    "name": "comfyui-flux2.klein.9b-edit",
     "filename": null,
     "scale_factor": 1,
     "url": null,
     "workflow_file": "lib/comfyui/workflows/image_enhance.json",
-    "display_name": "ComfyUI Enhance",
+    "display_name": "comfyui-flux2.klein.9b-edit",
     "params": [
       {
         "key": "denoise",

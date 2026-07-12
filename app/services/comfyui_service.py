@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from PIL import Image
 from app.sessions import Session
-from app.config import comfyui_settings
+from app.config import comfyui_settings, read_settings
 from lib.comfyui.client import ComfyClient
 
 from lib.upscaling.util import scale_to_megapixels
@@ -32,7 +32,7 @@ def upscale_with_comfyui(
             os.path.dirname(__file__), "..", "..", workflow_file
         )
 
-    fparams = settings.get("comfyui_fparams", {})
+    fparams = read_settings().get("comfyui_fparams", {})
     workflow_params = fparams.get(upscaler_name, {}) if upscaler_name else {}
 
     client = ComfyClient(url, api_token)
@@ -75,7 +75,9 @@ def upscale_with_comfyui(
                 for img_data in node_output["images"]:
                     output_filename = img_data.get("filename")
                     if output_filename:
-                        upscaled = client.download_output(output_filename)
+                        output_type = img_data.get("type", "temp")
+                        subfolder = img_data.get("subfolder", "")
+                        upscaled = client.download_output(output_filename, output_type, subfolder)
                         break
                 break
 

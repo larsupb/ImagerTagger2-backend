@@ -234,6 +234,9 @@ class SettingsResponse(BaseModel):
     rembg: dict
     vlm_endpoint: dict
     llm_endpoint: dict
+    comfyui: dict
+    comfyui_fparams: dict
+    ideogram_settings: dict
     white_balance_method: Optional[str] = "gray_world"
 
 

@@ -112,11 +112,11 @@ class ComfyClient:
 
             time.sleep(poll_interval)
 
-    def download_output(self, filename: str) -> Image.Image:
+    def download_output(self, filename: str, output_type: str = "temp", subfolder: str = "") -> Image.Image:
         """Download an output image from ComfyUI."""
         response = requests.get(
             f"{self.url}/api/view",
-            params={"filename": filename},
+            params={"filename": filename, "type": output_type, "subfolder": subfolder},
             headers=self.get_headers(),
             timeout=60,
         )

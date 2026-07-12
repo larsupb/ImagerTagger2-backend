@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.sessions import Session
-from app.db.repository import ImageRepository, CaptionRepository
+from app.db.repository import ImageRepository, CaptionRepository, CategoryRepository
 
 logger = logging.getLogger(__name__)
 
@@ -125,10 +125,34 @@ def remove_tags(session: Session, tags_to_remove: list[str], caption_type: str =
     return modified
 
 
-def append_tag(session: Session, tag: str, caption_type: str = "tags") -> int:
+def _build_category_filter(session: Session, categories: Optional[list[str]]):
+    """Return a predicate(filename) -> bool selecting images in the given categories.
+
+    None means no filtering (all images). "Uncategorized" matches images with no category.
+    """
+    if categories is None:
+        return lambda filename: True
+    selected = set(categories)
+    filename_to_category = CategoryRepository.get_filename_to_category(session.db)
+
+    def matches(filename: str) -> bool:
+        category = filename_to_category.get(filename)
+        if category is None:
+            return "Uncategorized" in selected
+        return category in selected
+
+    return matches
+
+
+def append_tag(
+    session: Session, tag: str, caption_type: str = "tags", categories: Optional[list[str]] = None
+) -> int:
     rows = CaptionRepository.get_all_by_type(session.db, caption_type)
+    in_categories = _build_category_filter(session, categories)
     modified = 0
     for row in rows:
+        if not in_categories(row["filename"]):
+            continue
         content = row["content"]
         existing_tags = [t.strip() for t in content.split(",") if t.strip()] if content else []
         if tag not in existing_tags:
@@ -140,10 +164,15 @@ def append_tag(session: Session, tag: str, caption_type: str = "tags") -> int:
     return modified
 
 
-def prepend_tag(session: Session, tag: str, caption_type: str = "tags") -> int:
+def prepend_tag(
+    session: Session, tag: str, caption_type: str = "tags", categories: Optional[list[str]] = None
+) -> int:
     rows = CaptionRepository.get_all_by_type(session.db, caption_type)
+    in_categories = _build_category_filter(session, categories)
     modified = 0
     for row in rows:
+        if not in_categories(row["filename"]):
+            continue
         content = row["content"]
         existing_tags = [t.strip() for t in content.split(",") if t.strip()] if content else []
         if tag not in existing_tags:

@@ -107,6 +107,7 @@ class TagOperationRequest(BaseModel):
 class AppendTagRequest(BaseModel):
     tag: str
     caption_type: str = "tags"
+    categories: Optional[list[str]] = None
 
 
 class CaptionTypeRequest(BaseModel):

@@ -82,7 +82,7 @@ def remove_tags(req: TagOperationRequest, session: Session = Depends(get_session
 def append_tag(req: AppendTagRequest, session: Session = Depends(get_session)):
     if session.dataset is None:
         raise HTTPException(400, "No dataset loaded")
-    modified = caption_service.append_tag(session, req.tag, req.caption_type)
+    modified = caption_service.append_tag(session, req.tag, req.caption_type, req.categories)
     return {"modified": modified}
 
 
@@ -90,7 +90,7 @@ def append_tag(req: AppendTagRequest, session: Session = Depends(get_session)):
 def prepend_tag(req: AppendTagRequest, session: Session = Depends(get_session)):
     if session.dataset is None:
         raise HTTPException(400, "No dataset loaded")
-    modified = caption_service.prepend_tag(session, req.tag, req.caption_type)
+    modified = caption_service.prepend_tag(session, req.tag, req.caption_type, req.categories)
     return {"modified": modified}
 
 

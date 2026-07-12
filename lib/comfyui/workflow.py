@@ -4,6 +4,7 @@ ComfyUI workflow definition and helpers.
 
 import copy
 import json
+import logging
 import os
 
 from app.config import comfyui_settings
@@ -67,27 +68,38 @@ def _find_nodes_by_class(workflow: dict, class_type: str) -> list[tuple[str, dic
     ]
 
 
-def inject_params(workflow: dict, params: dict) -> dict:
+def inject_params(workflow: dict, injections: list) -> dict:
     """
-    Inject workflow-specific parameters into nodes.
+    Inject workflow-specific parameters into their declared nodes.
 
     Args:
         workflow: Workflow dict already processed by inject_image()
-        params: Flat dict of {key: value} from settings
+        injections: List of resolved specs, each a dict with keys
+            "node_id", "input_name", and "value". Targeting is explicit so
+            that several nodes sharing an input name (e.g. multiple
+            PrimitiveStringMultiline "value" inputs) can be set independently.
 
     Returns:
         Modified workflow dict with params injected
     """
     result = copy.deepcopy(workflow)
 
-    for key, value in params.items():
+    for spec in injections:
+        value = spec.get("value")
         if value is None:
             continue
 
-        for node_id, node in result.items():
-            if isinstance(node, dict) and "inputs" in node:
-                if key in node["inputs"]:
-                    node["inputs"][key] = value
+        node_id = spec.get("node_id")
+        input_name = spec.get("input_name")
+        node = result.get(node_id)
+        if isinstance(node, dict) and input_name in node.get("inputs", {}):
+            node["inputs"][input_name] = value
+        else:
+            logging.warning(
+                "inject_params: could not resolve node_id=%r input_name=%r",
+                node_id,
+                input_name,
+            )
 
     return result
 
@@ -110,7 +122,7 @@ def inject_image(
         target_megapixels: Target output megapixels
         input_width: Input image width
         input_height: Input image height
-        params: Flat dict of {key: value} from settings to inject into nodes
+        params: List of resolved injection specs (see inject_params) to apply
 
     Returns:
         Modified workflow dict with image filename and resolution injected

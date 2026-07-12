@@ -62,7 +62,10 @@ class VLMTagger:
         self,
         image_path: str,
         prompt: str = "Describe this image in detail.",
-        target_megapixels: float = 0.5,
+        target_megapixels: float = 1.0,
+        temperature: float = 0.3,
+        top_p: float = 0.9,
+        max_tokens: int = 512,
     ) -> str:
         """
         Generate a caption for the given image.
@@ -70,7 +73,10 @@ class VLMTagger:
         Args:
             image_path: Path to the image file
             prompt: The prompt/instruction for the VLM
-            target_megapixels: Target size in megapixels for image resizing (default 0.5)
+            target_megapixels: Target size in megapixels for image resizing (default 1.0)
+            temperature: Sampling temperature; lower is more grounded (default 0.3)
+            top_p: Nucleus sampling probability mass (default 0.9)
+            max_tokens: Maximum tokens to generate (default 512)
 
         Returns:
             Generated caption string
@@ -106,7 +112,9 @@ class VLMTagger:
                         ],
                     }
                 ],
-                max_tokens=1024,
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
             )
             api_time = time.time() - api_start
             logger.info(f"API request completed in {api_time:.2f}s")
@@ -184,6 +192,10 @@ def generate_vlm_caption(image_path: str, settings: dict) -> str:
                   - prompt: Prompt for caption generation
                   - timeout: Request timeout in seconds (optional, default: 120)
                   - max_retries: Maximum retry attempts (optional, default: 2)
+                  - target_megapixels: Resize target in MP (optional, default: 1.0)
+                  - temperature: Sampling temperature (optional, default: 0.3)
+                  - top_p: Nucleus sampling probability mass (optional, default: 0.9)
+                  - max_tokens: Maximum tokens to generate (optional, default: 512)
 
     Returns:
         Generated caption string
@@ -200,6 +212,10 @@ def generate_vlm_caption(image_path: str, settings: dict) -> str:
         prompt = settings.get("prompt", "Describe this image in detail.")
         timeout = settings.get("timeout", 120.0)
         max_retries = settings.get("max_retries", 2)
+        target_megapixels = settings.get("target_megapixels", 1.0)
+        temperature = settings.get("temperature", 0.3)
+        top_p = settings.get("top_p", 0.9)
+        max_tokens = settings.get("max_tokens", 512)
 
         tagger = VLMTagger(
             api_key=api_key,
@@ -208,7 +224,14 @@ def generate_vlm_caption(image_path: str, settings: dict) -> str:
             timeout=timeout,
             max_retries=max_retries,
         )
-        caption = tagger.predict(image_path, prompt=prompt)
+        caption = tagger.predict(
+            image_path,
+            prompt=prompt,
+            target_megapixels=target_megapixels,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+        )
 
         return caption
     except Exception as e:

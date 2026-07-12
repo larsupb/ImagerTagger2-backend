@@ -18,6 +18,10 @@ DEFAULTS = {
         "base_url": "http://localhost:11434/v1",
         "model": "qwen2-vl:7b",
         "prompt": "Describe the image in continuous text.",
+        "target_megapixels": 1.0,
+        "temperature": 0.3,
+        "top_p": 0.9,
+        "max_tokens": 512,
     },
     "llm_endpoint": {
         "api_key": "",

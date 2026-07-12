@@ -20,6 +20,14 @@ from lib.media_item import is_image, is_video
 router = APIRouter(prefix="/api/dataset", tags=["dataset"])
 
 
+def _thumb_token(media_path: str) -> str:
+    try:
+        mtime = os.path.getmtime(media_path)
+    except OSError:
+        mtime = 0
+    return hashlib.md5(f"{media_path}:{mtime}".encode()).hexdigest()[:8]
+
+
 @router.post("/session")
 def create_session():
     session = session_manager.create()
@@ -122,7 +130,7 @@ def gallery(
             GalleryItem(
                 index=i,
                 thumbnail_url=f"/api/media/thumbnail/{i}",
-                thumb_token=hashlib.md5(item.media_path.encode()).hexdigest()[:8],
+                thumb_token=_thumb_token(item.media_path),
                 filename=item.filename,
                 is_bookmarked=is_bm,
                 has_caption=has_caption,

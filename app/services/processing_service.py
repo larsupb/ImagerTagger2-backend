@@ -84,6 +84,13 @@ def save_upscaled(session: Session, index: int):
     session.upscaled_image = None
     session.upscaled_index = None
 
+    from lib.media_cache import compute_cache_path, generate_thumbnail
+
+    stale_cache = compute_cache_path(item.media_path)
+    if os.path.exists(stale_cache):
+        os.remove(stale_cache)
+    item.thumbnail_path = generate_thumbnail(item.media_path)
+
 
 def remove_background(session: Session, index: int, model: str | None = None) -> str:
     from lib.masking import remove_background as do_remove_bg

@@ -64,7 +64,7 @@ def create_version_backup(session: Session, index: int, operation: str) -> Optio
 
 
 def restore_version(session: Session, version_id: int, index: Optional[int] = None) -> bool:
-    from lib.media_cache import generate_thumbnail
+    from lib.media_cache import compute_cache_path, generate_thumbnail
 
     version = VersionRepository.get_by_id(session.db, version_id)
     if not version:
@@ -104,6 +104,9 @@ def restore_version(session: Session, version_id: int, index: Optional[int] = No
     if index is not None:
         item = ds.get_item(index)
         if item:
+            stale_cache = compute_cache_path(target_path)
+            if os.path.exists(stale_cache):
+                os.remove(stale_cache)
             item.thumbnail_path = generate_thumbnail(target_path)
 
     if version["original_width"] and version["original_height"]:

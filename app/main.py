@@ -63,6 +63,7 @@ from app.routers import (
     promptgen,
     tasks,
     jobs,
+    session,
     dedup,
 )
 
@@ -79,6 +80,7 @@ app.include_router(projects.router)
 app.include_router(promptgen.router)
 app.include_router(tasks.router)
 app.include_router(jobs.router)
+app.include_router(session.router)
 app.include_router(dedup.router)
 
 

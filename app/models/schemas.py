@@ -11,6 +11,10 @@ class DatasetLoadRequest(BaseModel):
     include_subdirectories: bool = False
 
 
+class BulkDeleteRequest(BaseModel):
+    indices: list[int]
+
+
 class DatasetInfo(BaseModel):
     total_items: int
     base_dir: str

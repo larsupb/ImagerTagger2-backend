@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from app.sessions import Session, get_session, session_manager
 from app.db.repository import ImageRepository, CaptionRepository, CategoryRepository
 from app.models.schemas import (
+    BulkDeleteRequest,
     DatasetLoadRequest,
     DatasetInfo,
     MediaItemResponse,
@@ -170,6 +171,31 @@ def delete_item(index: int, session: Session = Depends(get_session)):
         ImageRepository.delete_by_filename(session.db, rel_path)
     ds.delete_item(index)
     return {"total_items": len(ds)}
+
+
+@router.delete("/items/bulk")
+def delete_items(req: BulkDeleteRequest, session: Session = Depends(get_session)):
+    ds = session.dataset
+    if ds is None:
+        raise HTTPException(400, "No dataset loaded")
+
+    invalid = [i for i in req.indices if i < 0 or i >= len(ds)]
+    if invalid:
+        raise HTTPException(400, f"Invalid indices: {invalid[:3]}")
+
+    deleted = 0
+    # Descending order so deletions do not shift the indices still to be removed
+    for index in sorted(set(req.indices), reverse=True):
+        item = ds.get_item(index)
+        if item is None:
+            continue
+        rel_path = os.path.relpath(item.media_path, ds.base_dir)
+        if ds.delete_item(index):
+            deleted += 1
+            if session.db:
+                ImageRepository.delete_by_filename(session.db, rel_path)
+
+    return {"deleted": deleted, "total_items": len(ds)}
 
 
 @router.post("/upload")

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Awaitable, Callable, Optional
@@ -142,6 +143,12 @@ async def wait_if_paused(task_id: str) -> None:
         if event is None:
             return
         await event.wait()
+
+
+def wait_if_paused_sync(task_id: str, poll_interval: float = 0.1) -> None:
+    """Thread-side counterpart of wait_if_paused, for job bodies run via to_thread."""
+    while task_id in _pause_events:
+        time.sleep(poll_interval)
 
 
 def submit(task_id: str, runner: Callable[[], Awaitable[None]]) -> None:

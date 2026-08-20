@@ -34,6 +34,9 @@ async def lifespan(app: FastAPI):
     yield
     task.cancel()
     task_service.shutdown_worker()
+    from app.services import export_service
+
+    export_service.discard_archives()
     from app.sessions import session_manager
 
     session_manager.cleanup_all()

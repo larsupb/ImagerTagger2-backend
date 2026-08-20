@@ -66,36 +66,23 @@ async def batch_process(
                         log_line.append(f"Renamed to {new_name}")
 
                     if req.upscale:
-                        create_version_backup(session, i, "upscale")
-                        from PIL import Image
+                        from app.services import processing_service
 
                         upscaler_name = getattr(req, "upscaler", None) or settings.get(
                             "upscaler", "NMKD_Siax_200k_4x"
                         )
                         target_mp = settings.get("upscale_target_megapixels", 2.0)
 
-                        if upscaler_name.startswith("comfyui-"):
-                            from app.services import processing_service
-
-                            await asyncio.to_thread(
-                                processing_service.upscale_image,
-                                session,
-                                i,
-                                upscaler_name,
-                                target_mp,
-                            )
-                        else:
-                            from lib.upscaling import upscale_image as do_upscale
-
-                            img = Image.open(item.media_path)
-                            result = await asyncio.to_thread(
-                                do_upscale,
-                                img,
-                                upscaler_name,
-                                session.config,
-                                target_megapixels=target_mp,
-                            )
-                            result.save(item.media_path)
+                        await asyncio.to_thread(
+                            processing_service.upscale_image,
+                            session,
+                            i,
+                            upscaler_name,
+                            target_mp,
+                        )
+                        await asyncio.to_thread(
+                            processing_service.save_upscaled, session, i
+                        )
                         log_line.append("Upscaled")
 
                     if req.bucket_resize and bucket_map and i in bucket_map:

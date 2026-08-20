@@ -150,7 +150,15 @@ class VLMTagger:
             logger.debug(f"Full response object: {response}")
             return ""
 
-        result = response.choices[0].message.content
+        msg = response.choices[0].message
+        result = msg.content
+
+        # Strip Gemma 4 thinking channel tags from content (both opening and closing)
+        stripped = result
+        for tag in ['<|channel>thought>', '<|channel|think|>']:
+            while tag in stripped:
+                stripped = stripped.replace(tag, '')
+        result = stripped.strip()
 
         # Check for empty or None result
         if result is None or (isinstance(result, str) and not result.strip()):

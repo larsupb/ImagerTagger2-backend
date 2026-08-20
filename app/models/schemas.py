@@ -164,6 +164,7 @@ class ComfyUIUpscaleRequest(BaseModel):
 class BatchProcessRequest(BaseModel):
     indices: Optional[list[int]] = None
     prompt: Optional[str] = None
+    revert_original: bool = False
     rename: bool = False
     rename_offset: int = 0
     upscale: bool = False

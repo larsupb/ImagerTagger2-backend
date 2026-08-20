@@ -16,12 +16,13 @@ from app.models.schemas import (
 )
 from app.config import read_settings
 from app.services.caption_service import save_caption as db_save_caption, read_caption as db_read_caption
-from app.services.version_service import create_version_backup
+from app.services.version_service import create_version_backup, revert_to_original
 from app.services import task_service
 
 router = APIRouter(prefix="/api/batch", tags=["batch"])
 
 _OPERATION_LABELS = [
+    ("revert_original", "Revert to original"),
     ("rename", "Rename"),
     ("upscale", "Upscale"),
     ("bucket_resize", "Bucket resize"),
@@ -108,6 +109,16 @@ async def batch_process(
             log_line = []
 
             try:
+                if req.revert_original:
+                    outcome = await asyncio.to_thread(revert_to_original, session, i)
+                    if outcome == "reverted":
+                        log_line.append("Reverted to original")
+                        item = ds.get_item(i)
+                    elif outcome == "no_versions":
+                        log_line.append("Revert skipped (no versions)")
+                    else:
+                        log_line.append("Revert ERROR: could not restore original")
+
                 if req.rename:
                     offset = getattr(req, "rename_offset", 0) or 0
                     new_name = f"{i + offset:05d}"

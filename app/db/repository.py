@@ -235,6 +235,14 @@ class VersionRepository:
         return [dict(r) for r in rows]
 
     @staticmethod
+    def get_oldest_for_image(db: sqlite3.Connection, image_id: int) -> Optional[dict]:
+        row = db.execute(
+            "SELECT * FROM image_versions WHERE image_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
+            (image_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
     def get_by_id(db: sqlite3.Connection, version_id: int) -> Optional[dict]:
         row = db.execute(
             "SELECT * FROM image_versions WHERE id = ?", (version_id,)
@@ -244,6 +252,11 @@ class VersionRepository:
     @staticmethod
     def delete(db: sqlite3.Connection, version_id: int) -> None:
         db.execute("DELETE FROM image_versions WHERE id = ?", (version_id,))
+        db.commit()
+
+    @staticmethod
+    def delete_for_image(db: sqlite3.Connection, image_id: int) -> None:
+        db.execute("DELETE FROM image_versions WHERE image_id = ?", (image_id,))
         db.commit()
 
 

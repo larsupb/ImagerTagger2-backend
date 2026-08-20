@@ -77,6 +77,7 @@ class ExportCaptionsTxtRequest(BaseModel):
 class CaptionGenerateRequest(BaseModel):
     index: int
     tagger: str
+    prompt: str | None = None
 
 
 class CaptionGenerateResponse(BaseModel):

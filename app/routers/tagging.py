@@ -12,7 +12,9 @@ def generate(req: CaptionGenerateRequest, session: Session = Depends(get_session
     if session.dataset is None:
         raise HTTPException(400, "No dataset loaded")
     try:
-        caption = tagger_service.generate_caption(session, req.index, req.tagger)
+        caption = tagger_service.generate_caption(
+            session, req.index, req.tagger, req.prompt
+        )
         return CaptionGenerateResponse(caption=caption)
     except Exception as e:
         raise HTTPException(500, str(e))

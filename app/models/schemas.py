@@ -178,6 +178,7 @@ class BatchProcessRequest(BaseModel):
     caption_type: str = "tags"
     skip_existing_captions: bool = False
     classify_attributes: bool = False
+    embed_captions: bool = False
     vlm_prompt: Optional[str] = None
     bucket_resolution: int = 1024
     bucket_step: int = 128

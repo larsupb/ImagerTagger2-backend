@@ -18,6 +18,7 @@ from app.config import read_settings
 from app.db.repository import AttributeRepository, ImageRepository
 from app.services.attribute_service import classify_item
 from app.services.caption_service import save_caption as db_save_caption, read_caption as db_read_caption
+from app.services.embedding_service import embed_one
 from app.services.version_service import create_version_backup, revert_to_original
 from app.services import task_service
 
@@ -253,6 +254,18 @@ async def batch_process(
                             )
                         else:
                             log_line.append("attributes: none")
+
+                if req.embed_captions and not caption_skipped:
+                    row = ImageRepository.get_by_filename(
+                        session.db,
+                        os.path.relpath(item.media_path, ds.base_dir),
+                    )
+                    if row is not None:
+                        try:
+                            await embed_one(session, row["id"])
+                            log_line.append("embedding: ok")
+                        except Exception:
+                            log_line.append("embedding: error")
 
                 if req.white_balance:
                     from lib.white_balance import white_balance_image

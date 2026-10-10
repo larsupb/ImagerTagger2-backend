@@ -1,8 +1,14 @@
 import pytest
 
 from app.db.connection import create_schema
-from app.db.repository import AttributeRepository, ImageRepository
+from app.db.repository import AttributeRepository, CaptionRepository, ImageRepository
 from app.attributes import ATTRIBUTES
+from app.services.attribute_service import (
+    UnknownAttributeError,
+    compute_footprint,
+    query_images,
+    set_attributes,
+)
 
 
 @pytest.fixture()
@@ -58,14 +64,6 @@ def test_get_all_rows_for_footprint(db):
     assert rows == [("shot_type", "selfie", 2)]
 
 
-from app.db.repository import CaptionRepository
-from app.services.attribute_service import (
-    compute_footprint,
-    query_images,
-    set_attributes,
-)
-
-
 def test_set_attributes_validates(db):
     image_id = _image(db)
     valid, errors = set_attributes(db, image_id, {"shot_type": "Selfie", "framing": "nope"})
@@ -113,10 +111,6 @@ def test_query_and_or_unset(db):
 
 
 def test_query_unknown_attribute_raises(db):
-    import pytest
-
-    from app.services.attribute_service import UnknownAttributeError
-
     with pytest.raises(UnknownAttributeError):
         query_images(db, {"shot_typ": ["selfie"]})
 

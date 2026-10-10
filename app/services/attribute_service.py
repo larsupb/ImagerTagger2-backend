@@ -71,6 +71,7 @@ def query_images(
         params + [limit, offset],
     ).fetchall()
 
+    attrs_map = AttributeRepository.get_for_image_ids(db, [r["id"] for r in rows])
     items = []
     for row in rows:
         row = dict(row)
@@ -86,7 +87,7 @@ def query_images(
                 "height": row["height"],
                 "file_size": row["file_size"],
                 "is_bookmarked": bool(row["is_bookmarked"]),
-                "attributes": AttributeRepository.get_for_image(db, row["id"]),
+                "attributes": attrs_map.get(row["id"], {}),
                 "captions": captions,
             }
         )

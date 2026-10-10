@@ -159,7 +159,8 @@ def test_classify_writes_valid_values(client, dataset, monkeypatch):
     junk = "I cannot answer"
     task_id, calls = _start_classify(client, dataset, monkeypatch, {0: good, 1: junk, 2: ""})
     status = _wait_task(client, task_id, dataset["headers"])
-    assert status["status"] == "completed"
+    assert status["status"] == "failed"
+    assert "2" in (status.get("error") or "")
     assert all(c["tagger"] == "vlm-tagger" for c in calls)
     assert "has_person" in calls[0]["prompt"]
 
@@ -224,6 +225,39 @@ def test_classify_single_index(client, dataset, monkeypatch):
     assert stored["attributes"] == {"shot_type": "selfie"}
 
     assert client.post("/api/attributes/classify?index=99", headers=dataset["headers"]).status_code == 404
+
+
+def test_classify_single_index_retries_empty_response(client, dataset, monkeypatch):
+    good = _json.dumps({"has_person": True, "shot_type": "selfie"})
+    calls = []
+
+    def fake_generate_caption(index, tagger, state_dict, prompt=None):
+        calls.append(index)
+        return "" if len(calls) == 1 else good
+
+    monkeypatch.setattr("lib.captioning.generate_caption", fake_generate_caption)
+    response = client.post("/api/attributes/classify?index=0", headers=dataset["headers"])
+    body = response.json()
+    assert body["failed"] is False
+    assert body["attributes"] == {"shot_type": "selfie"}
+    assert calls == [0, 0]
+
+
+def test_classify_single_index_empty_after_retry_is_failure(client, dataset, monkeypatch):
+    calls = []
+
+    def fake_generate_caption(index, tagger, state_dict, prompt=None):
+        calls.append(index)
+        return ""
+
+    monkeypatch.setattr("lib.captioning.generate_caption", fake_generate_caption)
+    response = client.post("/api/attributes/classify?index=0", headers=dataset["headers"])
+    body = response.json()
+    assert body["failed"] is True
+    assert body["attributes"] == {}
+    assert calls == [0, 0]
+    stored = client.get("/api/attributes?filename=img0.png", headers=dataset["headers"]).json()
+    assert stored["attributes"] == {}
 
 
 def test_gallery_returns_attributes(client, dataset):

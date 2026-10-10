@@ -118,18 +118,24 @@ async def classify_item(
     if row is None:
         return {}, False
 
-    try:
-        from lib.captioning import generate_caption
+    from lib.captioning import generate_caption
 
-        raw = await asyncio.to_thread(
-            generate_caption, index, tagger, {"dataset": ds}, prompt=prompt
-        )
+    parsed: dict = {}
+    for _attempt in range(2):
+        try:
+            raw = await asyncio.to_thread(
+                generate_caption, index, tagger, {"dataset": ds}, prompt=prompt
+            )
+        except Exception:
+            continue
         parsed, _has_person = parse_attributes_response(raw or "")
-    except Exception:
+        if parsed:
+            break
+
+    if not parsed:
         return {}, True
 
-    if parsed:
-        AttributeRepository.set_many(db, row["id"], parsed)
+    AttributeRepository.set_many(db, row["id"], parsed)
     return parsed, False
 
 

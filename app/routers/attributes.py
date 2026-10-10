@@ -3,12 +3,13 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from app.attributes import ATTRIBUTES
+from app.attributes import ATTRIBUTES, build_classify_prompt
 from app.db.repository import AttributeRepository, ImageRepository
 from app.sessions import Session, get_session
 from app.services import task_service
 from app.services.attribute_service import (
     UnknownAttributeError,
+    classify_item,
     compute_footprint,
     index_for_filename,
     query_images,
@@ -88,11 +89,21 @@ def put(update: AttributeUpdate, session: Session = Depends(get_session)):
 async def classify(
     tagger: str = Query(default="vlm-tagger"),
     only_missing: bool = False,
+    index: int | None = None,
     session: Session = Depends(get_session),
 ):
     _require_db(session)
     if session.dataset is None:
         raise HTTPException(400, "No dataset loaded")
+    if index is not None:
+        if not 0 <= index < len(session.dataset):
+            raise HTTPException(404, "Index out of range")
+        parsed, failed = await classify_item(
+            session.dataset, session.db, index, tagger, build_classify_prompt()
+        )
+        item = session.dataset.get_item(index)
+        rel_path = os.path.relpath(item.media_path, session.dataset.base_dir)
+        return {"index": index, "filename": rel_path, "attributes": parsed, "failed": failed}
     task_id = task_service.create_task(
         len(session.dataset),
         name="Attribute classification",

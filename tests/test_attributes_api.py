@@ -204,6 +204,28 @@ def test_classify_failures_reported_in_task(client, dataset, monkeypatch):
     assert sorted(i["filename"] for i in query["items"]) == ["img0.png", "img2.png"]
 
 
+def test_classify_single_index(client, dataset, monkeypatch):
+    good = _json.dumps({"has_person": True, "shot_type": "Selfie"})
+    calls = []
+
+    def fake_generate_caption(index, tagger, state_dict, prompt=None):
+        calls.append({"index": index, "prompt": prompt})
+        return good
+
+    monkeypatch.setattr("lib.captioning.generate_caption", fake_generate_caption)
+    response = client.post("/api/attributes/classify?index=0", headers=dataset["headers"])
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"index": 0, "filename": "img0.png", "attributes": {"shot_type": "selfie"}, "failed": False}
+    assert calls == [{"index": 0, "prompt": calls[0]["prompt"]}]
+    assert "has_person" in calls[0]["prompt"]
+
+    stored = client.get("/api/attributes?filename=img0.png", headers=dataset["headers"]).json()
+    assert stored["attributes"] == {"shot_type": "selfie"}
+
+    assert client.post("/api/attributes/classify?index=99", headers=dataset["headers"]).status_code == 404
+
+
 def test_gallery_returns_attributes(client, dataset):
     headers = dataset["headers"]
     client.put(

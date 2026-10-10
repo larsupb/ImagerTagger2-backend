@@ -269,6 +269,7 @@ class GalleryItem(BaseModel):
     width: int | None = None
     height: int | None = None
     category: str | None = None
+    attributes: dict[str, str] = {}
 
 
 class GalleryResponse(BaseModel):

@@ -201,3 +201,16 @@ def test_classify_failures_reported_in_task(client, dataset, monkeypatch):
     assert "1" in (status.get("error") or "")
     query = client.get("/api/attributes/query?medium=photo", headers=dataset["headers"]).json()
     assert sorted(i["filename"] for i in query["items"]) == ["img0.png", "img2.png"]
+
+
+def test_gallery_returns_attributes(client, dataset):
+    headers = dataset["headers"]
+    client.put(
+        "/api/attributes",
+        json={"filename": "img0.png", "attributes": {"shot_type": "selfie"}},
+        headers=headers,
+    )
+    gallery = client.get("/api/dataset/gallery?page=0&page_size=10", headers=headers).json()
+    by_name = {i["filename"]: i for i in gallery["items"]}
+    assert by_name["img0.png"]["attributes"] == {"shot_type": "selfie"}
+    assert by_name["img1.png"]["attributes"] == {}

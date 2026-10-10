@@ -1,0 +1,103 @@
+import os
+import sqlite3
+
+from app.attributes import ATTRIBUTES, validate_attributes
+from app.db.repository import AttributeRepository, CaptionRepository
+
+
+class UnknownAttributeError(ValueError):
+    pass
+
+
+def set_attributes(db: sqlite3.Connection, image_id: int, attributes: dict) -> tuple[dict, dict]:
+    valid, errors = validate_attributes(attributes)
+    if valid:
+        AttributeRepository.set_many(db, image_id, valid)
+    for key, value in attributes.items():
+        if value is None and key in ATTRIBUTES:
+            AttributeRepository.unset(db, image_id, key)
+    return valid, errors
+
+
+def compute_footprint(db: sqlite3.Connection) -> dict:
+    total = db.execute("SELECT COUNT(*) AS n FROM images").fetchone()["n"]
+    footprint: dict = {name: {} for name in ATTRIBUTES}
+    for key, value, count in AttributeRepository.get_all_rows(db):
+        if key in footprint and value in ATTRIBUTES[key]["values"]:
+            footprint[key][value] = count
+    for key in footprint:
+        footprint[key]["_unset"] = total - sum(footprint[key].values())
+    footprint["_total"] = total
+    return footprint
+
+
+def query_images(
+    db: sqlite3.Connection,
+    filters: dict[str, list[str]],
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    for key in filters:
+        if key not in ATTRIBUTES:
+            raise UnknownAttributeError(key)
+
+    where: list[str] = []
+    params: list = []
+    joins: list[str] = []
+    for n, (key, values) in enumerate(filters.items()):
+        alias = f"m{n}"
+        if values == ["unset"]:
+            joins.append(
+                f"LEFT JOIN metadata {alias} ON {alias}.image_id = i.id AND {alias}.key = ?"
+            )
+            params.append(key)
+            where.append(f"{alias}.key IS NULL")
+        else:
+            joins.append(
+                f"JOIN metadata {alias} ON {alias}.image_id = i.id AND {alias}.key = ?"
+                f" AND {alias}.value IN ({', '.join('?' * len(values))})"
+            )
+            params.append(key)
+            params.extend(values)
+
+    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+    joins_sql = " ".join(joins)
+    total = db.execute(
+        f"SELECT COUNT(*) AS n FROM images i {joins_sql}{where_sql}", params
+    ).fetchone()["n"]
+    rows = db.execute(
+        f"SELECT i.* FROM images i {joins_sql}{where_sql}"
+        " GROUP BY i.id ORDER BY i.id LIMIT ? OFFSET ?",
+        params + [limit, offset],
+    ).fetchall()
+
+    items = []
+    for row in rows:
+        row = dict(row)
+        captions = {
+            c["caption_type"]: c["content"]
+            for c in CaptionRepository.get_all_for_image(db, row["id"])
+        }
+        items.append(
+            {
+                "id": row["id"],
+                "filename": row["filename"],
+                "width": row["width"],
+                "height": row["height"],
+                "file_size": row["file_size"],
+                "is_bookmarked": bool(row["is_bookmarked"]),
+                "attributes": AttributeRepository.get_for_image(db, row["id"]),
+                "captions": captions,
+            }
+        )
+    return {"total": total, "items": items}
+
+
+def index_for_filename(session, filename: str) -> int | None:
+    ds = session.dataset
+    if ds is None:
+        return None
+    try:
+        return ds.find_index(os.path.join(ds.base_dir, filename))
+    except ValueError:
+        return None

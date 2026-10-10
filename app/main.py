@@ -27,9 +27,16 @@ async def background_cleanup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.services import task_service
+
     task = asyncio.create_task(background_cleanup())
+    task_service.start_worker()
     yield
     task.cancel()
+    task_service.shutdown_worker()
+    from app.services import export_service
+
+    export_service.discard_archives()
     from app.sessions import session_manager
 
     session_manager.cleanup_all()
@@ -58,7 +65,10 @@ from app.routers import (
     projects,
     promptgen,
     tasks,
+    jobs,
+    session,
     dedup,
+    attributes,
 )
 
 app.include_router(dataset.router)
@@ -73,7 +83,10 @@ app.include_router(settings.router)
 app.include_router(projects.router)
 app.include_router(promptgen.router)
 app.include_router(tasks.router)
+app.include_router(jobs.router)
+app.include_router(session.router)
 app.include_router(dedup.router)
+app.include_router(attributes.router)
 
 
 @app.get("/health")

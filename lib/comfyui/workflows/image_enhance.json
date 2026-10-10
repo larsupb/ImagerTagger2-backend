@@ -152,22 +152,6 @@
       "title": "ReferenceLatent (Positive)"
     }
   },
-  "158:160": {
-    "inputs": {
-      "conditioning": [
-        "158:98",
-        0
-      ],
-      "latent": [
-        "158:114",
-        0
-      ]
-    },
-    "class_type": "ReferenceLatent",
-    "_meta": {
-      "title": "ReferenceLatent (Chained Enhancement)"
-    }
-  },
   "158:120": {
     "inputs": {
       "upscale_method": "bilinear",
@@ -213,7 +197,7 @@
         0
       ],
       "positive": [
-        "158:160",
+        "158:98",
         0
       ],
       "negative": [

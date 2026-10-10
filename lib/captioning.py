@@ -17,7 +17,7 @@ def _get_dataset(state_dict: dict) -> ImageDataSet | None:
     return state_dict.get("dataset")
 
 
-def generate_caption(current_index, option, state_dict):
+def generate_caption(current_index, option, state_dict, prompt=None):
     dataset = _get_dataset(state_dict)
     if dataset is None or not dataset.is_initialized:
         logger.warning("Cannot generate caption: dataset is None or not initialized")
@@ -48,15 +48,19 @@ def generate_caption(current_index, option, state_dict):
             elif option == "florence":
                 from lib.tagging.florence_tagger import generate_florence_caption
 
-                caption = generate_florence_caption(
-                    path, prompt=config.florence_settings(state_dict)["prompt"]
+                florence_prompt = (
+                    prompt
+                    if prompt
+                    else config.florence_settings(state_dict)["prompt"]
                 )
+                caption = generate_florence_caption(path, prompt=florence_prompt)
             elif option == "vlm-tagger":
                 from lib.tagging.openai_tagger import generate_vlm_caption
 
-                caption = generate_vlm_caption(
-                    path, config.vlm_endpoint_settings(state_dict)
-                )
+                vlm_settings = dict(config.vlm_endpoint_settings(state_dict))
+                if prompt:
+                    vlm_settings["prompt"] = prompt
+                caption = generate_vlm_caption(path, vlm_settings)
             elif option == "ideogram":
                 from lib.tagging.ideogram_tagger import generate_ideogram_caption
 

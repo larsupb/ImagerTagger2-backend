@@ -146,3 +146,41 @@ def delete_version(session: Session, version_id: int) -> bool:
 
     VersionRepository.delete(session.db, version_id)
     return True
+
+
+def _delete_all_version_files(session: Session, image_id: int) -> None:
+    ds = session.dataset
+    for version in VersionRepository.get_for_image(session.db, image_id):
+        version_full_path = os.path.join(
+            ds.base_dir, ".imagetagger", version["version_path"]
+        )
+        if os.path.exists(version_full_path):
+            os.remove(version_full_path)
+    VersionRepository.delete_for_image(session.db, image_id)
+
+
+def revert_to_original(session: Session, index: int) -> str:
+    """Restore an image to its earliest backup and drop its version history.
+
+    Returns "reverted", "no_versions" or "failed".
+    """
+    ds = session.dataset
+    item = ds.get_item(index)
+    if not item:
+        return "failed"
+
+    rel_path = os.path.relpath(item.media_path, ds.base_dir)
+    img_row = ImageRepository.get_by_filename(session.db, rel_path)
+    if not img_row:
+        return "no_versions"
+
+    oldest = VersionRepository.get_oldest_for_image(session.db, img_row["id"])
+    if not oldest:
+        return "no_versions"
+
+    if not restore_version(session, oldest["id"], index=index):
+        return "failed"
+
+    _delete_all_version_files(session, img_row["id"])
+    logger.info(f"Reverted {rel_path} to original and cleared version history")
+    return "reverted"

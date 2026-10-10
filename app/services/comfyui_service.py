@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 import sys
 
@@ -9,6 +11,47 @@ from app.config import comfyui_settings, read_settings
 from lib.comfyui.client import ComfyClient
 
 from lib.upscaling.util import scale_to_megapixels
+
+_UPSCALERS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "upscalers.json")
+
+
+def _resolve_param_injections(upscaler_name: str, fparams: dict) -> list:
+    """Join saved flat {key: value} overrides with the upscaler's param schema
+    to produce explicit {node_id, input_name, value} injection specs."""
+    if not upscaler_name or not fparams:
+        return []
+
+    try:
+        with open(_UPSCALERS_PATH) as f:
+            upscalers = json.load(f)
+    except (OSError, ValueError) as e:
+        logging.warning("Could not load upscalers.json for param resolution: %s", e)
+        return []
+
+    schema = next(
+        (u.get("params", []) for u in upscalers if u.get("name") == upscaler_name),
+        [],
+    )
+    by_key = {p["key"]: p for p in schema if "key" in p}
+
+    injections = []
+    for key, value in fparams.items():
+        param = by_key.get(key)
+        if not param:
+            logging.warning(
+                "inject_params: no schema entry for param %r on upscaler %r; skipping",
+                key,
+                upscaler_name,
+            )
+            continue
+        injections.append(
+            {
+                "node_id": param.get("node_id"),
+                "input_name": param.get("input_name"),
+                "value": value,
+            }
+        )
+    return injections
 
 
 def upscale_with_comfyui(
@@ -34,6 +77,7 @@ def upscale_with_comfyui(
 
     fparams = read_settings().get("comfyui_fparams", {})
     workflow_params = fparams.get(upscaler_name, {}) if upscaler_name else {}
+    param_injections = _resolve_param_injections(upscaler_name, workflow_params)
 
     client = ComfyClient(url, api_token)
 
@@ -53,7 +97,7 @@ def upscale_with_comfyui(
         input_width=img_width,
         input_height=img_height,
         workflow_file=workflow_file,
-        params=workflow_params,
+        params=param_injections,
     )
 
     result = client.wait_for_completion(prompt_id)

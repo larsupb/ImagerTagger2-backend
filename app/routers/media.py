@@ -2,6 +2,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+# module-level on purpose: tests/test_export.py swaps app.db.repository in sys.modules at collection time; function-local imports would resolve the mock
 from app.db.repository import ImageRepository
 from app.sessions import Session, get_session_flexible
 

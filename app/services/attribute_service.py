@@ -2,7 +2,7 @@ import os
 import sqlite3
 
 from app.attributes import ATTRIBUTES, validate_attributes
-from app.db.repository import AttributeRepository, CaptionRepository
+from app.db.repository import AttributeRepository, CaptionRepository, ImageRepository
 
 
 class UnknownAttributeError(ValueError):
@@ -105,6 +105,49 @@ def index_for_filename(session, filename: str) -> int | None:
 
 
 async def run_classification(session, task_id: str, tagger: str, only_missing: bool) -> None:
+    import asyncio
+
+    from app.attributes import build_classify_prompt, parse_attributes_response
     from app.services import task_service
 
-    task_service.complete_task(task_id)
+    ds = session.dataset
+    db = session.db
+    prompt = build_classify_prompt()
+    failures = 0
+    task_service.start_task(task_id)
+
+    for index in range(len(ds)):
+        if task_service.is_cancelled(task_id):
+            break
+        await task_service.wait_if_paused(task_id)
+
+        item = ds.get_item(index)
+        rel_path = os.path.relpath(item.media_path, ds.base_dir)
+        row = ImageRepository.get_by_filename(db, rel_path)
+        if row is None:
+            continue
+        existing = AttributeRepository.get_for_image(db, row["id"])
+        if only_missing and existing:
+            task_service.update_progress(
+                task_id, index, len(ds), index, rel_path, "skipped (already set)"
+            )
+            continue
+
+        try:
+            from lib.captioning import generate_caption
+
+            raw = await asyncio.to_thread(
+                generate_caption, index, tagger, {"dataset": ds}, prompt=prompt
+            )
+            parsed, _has_person = parse_attributes_response(raw or "")
+        except Exception:
+            parsed, failures = {}, failures + 1
+
+        if parsed:
+            AttributeRepository.set_many(db, row["id"], parsed)
+        task_service.update_progress(task_id, index, len(ds), index, rel_path, "ok" if parsed else "no attributes parsed")
+
+    session.touch()
+    task_service.complete_task(
+        task_id, error=f"{failures} images failed to classify" if failures else None
+    )

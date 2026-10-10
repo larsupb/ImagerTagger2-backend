@@ -123,3 +123,63 @@ def test_query_and_media_by_id(client, dataset):
     assert response.status_code == 200
 
     assert client.get("/api/media/by-id/99999", headers=headers).status_code == 404
+
+
+import json as _json
+
+
+def _start_classify(client, dataset, monkeypatch, responses, only_missing=False):
+    calls = []
+
+    def fake_generate_caption(index, tagger, state_dict, prompt=None):
+        calls.append({"index": index, "tagger": tagger, "prompt": prompt})
+        return responses[index]
+
+    monkeypatch.setattr("lib.captioning.generate_caption", fake_generate_caption)
+    response = client.post(
+        f"/api/attributes/classify?tagger=vlm-tagger&only_missing={str(only_missing).lower()}",
+        headers=dataset["headers"],
+    )
+    assert response.status_code == 200
+    return response.json()["task_id"], calls
+
+
+def _wait_task(client, task_id, headers):
+    for _ in range(200):
+        status = client.get(f"/api/tasks/{task_id}", headers=headers).json()
+        if status["status"] in ("completed", "failed", "cancelled"):
+            return status
+        time.sleep(0.05)
+    raise AssertionError("task did not finish")
+
+
+def test_classify_writes_valid_values(client, dataset, monkeypatch):
+    good = _json.dumps({"has_person": True, "shot_type": "Selfie", "pose": "walking"})
+    junk = "I cannot answer"
+    task_id, calls = _start_classify(client, dataset, monkeypatch, {0: good, 1: junk, 2: ""})
+    status = _wait_task(client, task_id, dataset["headers"])
+    assert status["status"] == "completed"
+    assert all(c["tagger"] == "vlm-tagger" for c in calls)
+    assert "has_person" in calls[0]["prompt"]
+
+    query = client.get("/api/attributes/query?shot_type=selfie", headers=dataset["headers"]).json()
+    assert [i["filename"] for i in query["items"]] == ["img0.png"]
+    assert query["items"][0]["attributes"]["pose"] == "walking"
+
+
+def test_classify_only_missing_skips_classified_images(client, dataset, monkeypatch):
+    client.put(
+        "/api/attributes",
+        json={"filename": "img0.png", "attributes": {"shot_type": "headshot"}},
+        headers=dataset["headers"],
+    )
+    good = _json.dumps({"has_person": False, "shot_type": "aerial"})
+    task_id, calls = _start_classify(
+        client, dataset, monkeypatch, {0: good, 1: good, 2: good}, only_missing=True
+    )
+    _wait_task(client, task_id, dataset["headers"])
+    assert 0 not in [c["index"] for c in calls]
+    query = client.get("/api/attributes/query?shot_type=headshot", headers=dataset["headers"]).json()
+    assert [i["filename"] for i in query["items"]] == ["img0.png"]
+    query = client.get("/api/attributes/query?shot_type=aerial", headers=dataset["headers"]).json()
+    assert sorted(i["filename"] for i in query["items"]) == ["img1.png", "img2.png"]

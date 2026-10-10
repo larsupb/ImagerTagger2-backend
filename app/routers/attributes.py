@@ -85,7 +85,7 @@ def put(update: AttributeUpdate, session: Session = Depends(get_session)):
 
 
 @router.post("/classify")
-def classify(
+async def classify(
     tagger: str = Query(default="vlm-tagger"),
     only_missing: bool = False,
     session: Session = Depends(get_session),

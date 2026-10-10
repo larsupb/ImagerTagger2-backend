@@ -70,7 +70,6 @@ ATTRIBUTES: dict[str, dict] = {
 }
 
 _ALIASES = {
-    ("medium", "close_up"): ["closeup", "close up"],
     ("framing", "close_up"): ["closeup", "close up"],
     ("framing", "extreme_close_up"): ["ecu", "extreme close up"],
     ("framing", "medium_close_up"): ["mcu", "medium close up"],
@@ -139,12 +138,16 @@ def build_classify_prompt() -> str:
 def parse_attributes_response(raw: str) -> tuple[dict, bool]:
     if not raw:
         return {}, False
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
-        return {}, False
-    try:
-        data = json.loads(match.group(0))
-    except json.JSONDecodeError:
+    for pattern in (r"\{.*\}", r"\{.*?\}"):
+        match = re.search(pattern, raw, re.DOTALL)
+        if not match:
+            return {}, False
+        try:
+            data = json.loads(match.group(0))
+            break
+        except json.JSONDecodeError:
+            continue
+    else:
         return {}, False
     if not isinstance(data, dict):
         return {}, False

@@ -23,6 +23,13 @@ def test_coerce_value_normalizes():
     assert coerce_value("shot_type", "cats_and_dogs") is None
 
 
+def test_coerce_value_aliases():
+    assert coerce_value("framing", "closeup") == "close_up"
+    assert coerce_value("camera_angle", "ots") == "over_the_shoulder"
+    assert coerce_value("shot_type", "candid") == "candid_street"
+    assert coerce_value("medium", "closeup") is None
+
+
 def test_validate_attributes():
     valid, errors = validate_attributes(
         {"shot_type": "selfie", "framing": "blurry", "unknown_attr": "x"}
@@ -50,6 +57,14 @@ def test_parse_prose_wrapped_and_junk():
     )
     # pose ignored: has_person false -> person-only attributes dropped
     assert parsed == {"shot_type": "landscape", "medium": "photo"}
+    assert has_person is False
+
+
+def test_parse_trailing_brace_block():
+    parsed, has_person = parse_attributes_response(
+        'answer {"has_person": false, "medium": "photo"} more {x} here'
+    )
+    assert parsed == {"medium": "photo"}
     assert has_person is False
 
 

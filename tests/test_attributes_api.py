@@ -183,3 +183,21 @@ def test_classify_only_missing_skips_classified_images(client, dataset, monkeypa
     assert [i["filename"] for i in query["items"]] == ["img0.png"]
     query = client.get("/api/attributes/query?shot_type=aerial", headers=dataset["headers"]).json()
     assert sorted(i["filename"] for i in query["items"]) == ["img1.png", "img2.png"]
+
+
+def test_classify_failures_reported_in_task(client, dataset, monkeypatch):
+    good = _json.dumps({"has_person": False, "medium": "photo"})
+
+    def fake_generate_caption(index, tagger, state_dict, prompt=None):
+        if index == 1:
+            raise RuntimeError("VLM down")
+        return good
+
+    monkeypatch.setattr("lib.captioning.generate_caption", fake_generate_caption)
+    response = client.post("/api/attributes/classify?tagger=vlm-tagger", headers=dataset["headers"])
+    task_id = response.json()["task_id"]
+    status = _wait_task(client, task_id, dataset["headers"])
+    assert status["status"] == "failed"
+    assert "1" in (status.get("error") or "")
+    query = client.get("/api/attributes/query?medium=photo", headers=dataset["headers"]).json()
+    assert sorted(i["filename"] for i in query["items"]) == ["img0.png", "img2.png"]

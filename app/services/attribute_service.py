@@ -133,6 +133,7 @@ async def run_classification(session, task_id: str, tagger: str, only_missing: b
             )
             continue
 
+        message = "no attributes parsed"
         try:
             from lib.captioning import generate_caption
 
@@ -142,12 +143,14 @@ async def run_classification(session, task_id: str, tagger: str, only_missing: b
             parsed, _has_person = parse_attributes_response(raw or "")
         except Exception:
             parsed, failures = {}, failures + 1
+            message = "error"
 
         if parsed:
             AttributeRepository.set_many(db, row["id"], parsed)
-        task_service.update_progress(task_id, index, len(ds), index, rel_path, "ok" if parsed else "no attributes parsed")
+            message = "ok"
+        task_service.update_progress(task_id, index, len(ds), index, rel_path, message)
+        session.touch()
 
-    session.touch()
     task_service.complete_task(
         task_id, error=f"{failures} images failed to classify" if failures else None
     )

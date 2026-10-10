@@ -92,7 +92,7 @@ def complete_task(task_id: str, error: Optional[str] = None) -> None:
     task = _task_store.get(task_id)
     if task is None:
         return
-    if task.status == TaskStatus.CANCELLED:
+    if task.status in FINISHED_STATUSES:
         task.completed_at = task.completed_at or datetime.now()
         return
     task.status = TaskStatus.FAILED if error else TaskStatus.COMPLETED

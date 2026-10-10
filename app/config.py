@@ -28,6 +28,12 @@ DEFAULTS = {
         "base_url": "http://localhost:11434/v1",
         "model": "qwen3:32b",
     },
+    "embedding_endpoint": {
+        "api_key": "",
+        "base_url": "http://localhost:11434/v1",
+        "model": "qwen3-embedding-8b",
+        "timeout": 120,
+    },
     "comfyui": {
         "url": "http://localhost:8188",
         "api_token": "",
@@ -111,6 +117,11 @@ def ideogram_settings(state_dict=None) -> dict:
 def llm_endpoint_settings() -> dict:
     """Get LLM endpoint settings for PromptGen."""
     return read_settings().get("llm_endpoint", DEFAULTS["llm_endpoint"])
+
+
+def embedding_endpoint_settings() -> dict:
+    """Get OpenAI-compatible embedding endpoint settings."""
+    return read_settings().get("embedding_endpoint", DEFAULTS["embedding_endpoint"])
 
 
 def combo_taggers(state_dict: dict = None) -> list:

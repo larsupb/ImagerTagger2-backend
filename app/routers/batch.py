@@ -15,6 +15,7 @@ from app.models.schemas import (
     WhiteBalancePreviewResult,
 )
 from app.config import read_settings
+from app.db.repository import AttributeRepository, ImageRepository
 from app.services.attribute_service import classify_item
 from app.services.caption_service import save_caption as db_save_caption, read_caption as db_read_caption
 from app.services.version_service import create_version_backup, revert_to_original
@@ -190,15 +191,15 @@ async def batch_process(
                     )
                     mask_path = item.mask_path
                     if mask_path:
-                        import os
-
                         os.makedirs(os.path.dirname(mask_path), exist_ok=True)
                         mask.save(mask_path)
                     log_line.append("Mask generated")
 
+                caption_skipped = False
                 if req.caption:
                     skip = req.skip_existing_captions and bool(db_read_caption(session, i, req.caption_type or "tags"))
                     if skip:
+                        caption_skipped = True
                         log_line.append("Caption skipped (existing)")
                     else:
                         tagger_name = req.tagger
@@ -229,18 +230,29 @@ async def batch_process(
                         log_line.append(f"Caption: {caption[:50]}...")
 
                 if classify_prompt is not None:
-                    parsed, failed = await classify_item(
-                        ds, session.db, i, "vlm-tagger", classify_prompt
-                    )
-                    if failed:
-                        log_line.append("attributes: error")
-                    elif parsed:
-                        log_line.append(
-                            "attributes: "
-                            + ",".join(f"{k}={v}" for k, v in parsed.items())
+                    row = (
+                        ImageRepository.get_by_filename(
+                            session.db,
+                            os.path.relpath(item.media_path, ds.base_dir),
                         )
+                        if caption_skipped
+                        else None
+                    )
+                    if row is not None and AttributeRepository.get_for_image(session.db, row["id"]):
+                        log_line.append("attributes: skipped")
                     else:
-                        log_line.append("attributes: none")
+                        parsed, failed = await classify_item(
+                            ds, session.db, i, "vlm-tagger", classify_prompt
+                        )
+                        if failed:
+                            log_line.append("attributes: error")
+                        elif parsed:
+                            log_line.append(
+                                "attributes: "
+                                + ",".join(f"{k}={v}" for k, v in parsed.items())
+                            )
+                        else:
+                            log_line.append("attributes: none")
 
                 if req.white_balance:
                     from lib.white_balance import white_balance_image

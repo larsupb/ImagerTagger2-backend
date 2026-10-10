@@ -111,3 +111,29 @@ def test_batch_caption_without_attribute_detection(client, dataset, monkeypatch)
 
     footprint = client.get("/api/attributes/footprint", headers=dataset["headers"]).json()
     assert footprint["shot_type"].get("product", 0) == 0
+
+
+def test_batch_skipped_caption_classifies_only_unclassified(client, dataset, monkeypatch):
+    calls = _fake_captioner(monkeypatch)
+    status = _run_batch(client, dataset, {"caption": True})
+    assert status["status"] == "completed"
+
+    response = client.put(
+        "/api/attributes",
+        json={"filename": "img0.png", "attributes": {"shot_type": "product"}},
+        headers=dataset["headers"],
+    )
+    assert response.status_code == 200
+    calls.clear()
+
+    status = _run_batch(
+        client,
+        dataset,
+        {"caption": True, "skip_existing_captions": True, "classify_attributes": True},
+    )
+    assert status["status"] == "completed"
+
+    classify_calls = [c for c in calls if "has_person" in (c["prompt"] or "")]
+    caption_calls = [c for c in calls if "has_person" not in (c["prompt"] or "")]
+    assert [c["index"] for c in classify_calls] == [1]
+    assert caption_calls == []

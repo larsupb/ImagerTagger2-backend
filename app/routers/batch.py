@@ -15,6 +15,7 @@ from app.models.schemas import (
     WhiteBalancePreviewResult,
 )
 from app.config import read_settings
+from app.services.attribute_service import classify_item
 from app.services.caption_service import save_caption as db_save_caption, read_caption as db_read_caption
 from app.services.version_service import create_version_backup, revert_to_original
 from app.services import task_service
@@ -87,6 +88,12 @@ async def batch_process(
         if invalid:
             raise HTTPException(400, f"Invalid indices: {invalid[:3]}")
         target_indices = list(dict.fromkeys(req.indices))
+
+    classify_prompt = None
+    if req.classify_attributes and session.db is not None:
+        from app.attributes import build_classify_prompt
+
+        classify_prompt = build_classify_prompt()
 
     total = len(target_indices)
     task_id = task_service.create_task(
@@ -220,6 +227,20 @@ async def batch_process(
                             )
                         db_save_caption(session, i, caption, req.caption_type or "tags")
                         log_line.append(f"Caption: {caption[:50]}...")
+
+                if classify_prompt is not None:
+                    parsed, failed = await classify_item(
+                        ds, session.db, i, "vlm-tagger", classify_prompt
+                    )
+                    if failed:
+                        log_line.append("attributes: error")
+                    elif parsed:
+                        log_line.append(
+                            "attributes: "
+                            + ",".join(f"{k}={v}" for k, v in parsed.items())
+                        )
+                    else:
+                        log_line.append("attributes: none")
 
                 if req.white_balance:
                     from lib.white_balance import white_balance_image

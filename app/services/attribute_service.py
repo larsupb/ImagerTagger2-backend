@@ -105,10 +105,36 @@ def index_for_filename(session, filename: str) -> int | None:
         return None
 
 
-async def run_classification(session, task_id: str, tagger: str, only_missing: bool) -> None:
+async def classify_item(
+    ds, db: sqlite3.Connection, index: int, tagger: str, prompt: str
+) -> tuple[dict, bool]:
     import asyncio
 
-    from app.attributes import build_classify_prompt, parse_attributes_response
+    from app.attributes import parse_attributes_response
+
+    item = ds.get_item(index)
+    rel_path = os.path.relpath(item.media_path, ds.base_dir)
+    row = ImageRepository.get_by_filename(db, rel_path)
+    if row is None:
+        return {}, False
+
+    try:
+        from lib.captioning import generate_caption
+
+        raw = await asyncio.to_thread(
+            generate_caption, index, tagger, {"dataset": ds}, prompt=prompt
+        )
+        parsed, _has_person = parse_attributes_response(raw or "")
+    except Exception:
+        return {}, True
+
+    if parsed:
+        AttributeRepository.set_many(db, row["id"], parsed)
+    return parsed, False
+
+
+async def run_classification(session, task_id: str, tagger: str, only_missing: bool) -> None:
+    from app.attributes import build_classify_prompt
     from app.services import task_service
 
     ds = session.dataset
@@ -134,21 +160,12 @@ async def run_classification(session, task_id: str, tagger: str, only_missing: b
             )
             continue
 
-        message = "no attributes parsed"
-        try:
-            from lib.captioning import generate_caption
-
-            raw = await asyncio.to_thread(
-                generate_caption, index, tagger, {"dataset": ds}, prompt=prompt
-            )
-            parsed, _has_person = parse_attributes_response(raw or "")
-        except Exception:
-            parsed, failures = {}, failures + 1
+        parsed, failed = await classify_item(ds, db, index, tagger, prompt)
+        if failed:
+            failures += 1
             message = "error"
-
-        if parsed:
-            AttributeRepository.set_many(db, row["id"], parsed)
-            message = "ok"
+        else:
+            message = "ok" if parsed else "no attributes parsed"
         task_service.update_progress(task_id, index, len(ds), index, rel_path, message)
         session.touch()
 

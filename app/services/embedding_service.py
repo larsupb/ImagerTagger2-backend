@@ -2,7 +2,9 @@
 
 import asyncio
 import hashlib
+import json
 import os
+import urllib.request
 
 import numpy as np
 
@@ -14,16 +16,21 @@ BATCH_SIZE = 32
 
 
 def _create_embeddings(texts: list[str], settings: dict) -> list[list[float]]:
-    """Raw call to the OpenAI-compatible embeddings endpoint (test seam)."""
-    from openai import OpenAI
+    """Raw call to the OpenAI-compatible embeddings endpoint (test seam).
 
-    client = OpenAI(
-        base_url=settings["base_url"],
-        api_key=settings.get("api_key") or "none",
-        timeout=settings.get("timeout", 120),
+    Plain HTTP instead of the openai client: the client always sends
+    encoding_format, which LiteLLM/ollama frontends reject outright."""
+    req = urllib.request.Request(
+        settings["base_url"].rstrip("/") + "/embeddings",
+        data=json.dumps({"model": settings["model"], "input": texts}).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + (settings.get("api_key") or "none"),
+        },
     )
-    resp = client.embeddings.create(model=settings["model"], input=texts)
-    return [d.embedding for d in resp.data]
+    with urllib.request.urlopen(req, timeout=settings.get("timeout", 120)) as resp:
+        data = json.load(resp)
+    return [d["embedding"] for d in data.get("data", [])]
 
 
 def embed_texts(texts: list[str], settings: dict) -> np.ndarray:

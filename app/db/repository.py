@@ -386,3 +386,48 @@ class AttributeRepository:
         for row in rows:
             result.setdefault(row["filename"], {})[row["key"]] = row["value"]
         return result
+
+
+class VectorRepository:
+    """Caption embedding vectors (one L2-normalized float32 blob per image)."""
+
+    @staticmethod
+    def upsert(db: sqlite3.Connection, image_id: int, model: str, dim: int,
+               embedding: bytes, text_hash: str) -> None:
+        db.execute(
+            "INSERT INTO caption_vectors (image_id, model, dim, embedding, text_hash)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT(image_id) DO UPDATE SET model = excluded.model,"
+            " dim = excluded.dim, embedding = excluded.embedding,"
+            " text_hash = excluded.text_hash, updated_at = datetime('now')",
+            (image_id, model, dim, embedding, text_hash),
+        )
+
+    @staticmethod
+    def load_all(db: sqlite3.Connection) -> list[sqlite3.Row]:
+        return db.execute(
+            "SELECT image_id, model, dim, embedding, updated_at FROM caption_vectors"
+        ).fetchall()
+
+    @staticmethod
+    def hashes(db: sqlite3.Connection) -> dict[int, tuple[str, str]]:
+        return {
+            r["image_id"]: (r["model"], r["text_hash"])
+            for r in db.execute("SELECT image_id, model, text_hash FROM caption_vectors")
+        }
+
+    @staticmethod
+    def delete_missing(db: sqlite3.Connection, keep_ids: set[int]) -> int:
+        removed = 0
+        for r in db.execute("SELECT image_id FROM caption_vectors").fetchall():
+            if r["image_id"] not in keep_ids:
+                db.execute("DELETE FROM caption_vectors WHERE image_id = ?", (r["image_id"],))
+                removed += 1
+        return removed
+
+    @staticmethod
+    def revision(db: sqlite3.Connection) -> tuple[int, str]:
+        r = db.execute(
+            "SELECT COUNT(*) c, COALESCE(MAX(updated_at), '') m FROM caption_vectors"
+        ).fetchone()
+        return r["c"], r["m"]

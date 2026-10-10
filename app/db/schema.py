@@ -1,4 +1,4 @@
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 PRAGMA foreign_keys=ON;
@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS metadata (
     key TEXT NOT NULL,
     value TEXT,
     PRIMARY KEY(image_id, key)
+);
+
+CREATE TABLE IF NOT EXISTS caption_vectors (
+    image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE,
+    model TEXT NOT NULL,
+    dim INTEGER NOT NULL,
+    embedding BLOB NOT NULL,
+    text_hash TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
 

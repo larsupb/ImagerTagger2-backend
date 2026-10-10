@@ -2,7 +2,7 @@ import os
 import sqlite3
 
 from app.attributes import ATTRIBUTES, validate_attributes
-from app.db.repository import AttributeRepository, CaptionRepository, ImageRepository
+from app.db.repository import AttributeRepository, CaptionRepository, CategoryRepository, ImageRepository
 
 
 class UnknownAttributeError(ValueError):
@@ -89,6 +89,7 @@ def query_images(
                 "is_bookmarked": bool(row["is_bookmarked"]),
                 "attributes": attrs_map.get(row["id"], {}),
                 "captions": captions,
+                "category": CategoryRepository.get_for_image(db, row["id"]),
             }
         )
     return {"total": total, "items": items}

@@ -108,6 +108,7 @@ def test_query_and_media_by_id(client, dataset):
     assert item["filename"] == "img0.png"
     assert item["index"] == 0
     assert item["attributes"] == {"shot_type": "selfie", "pose": "walking"}
+    assert item["category"] is None
 
     response = client.get("/api/attributes/query?shot_typ=selfie", headers=headers)
     assert response.status_code == 422

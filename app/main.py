@@ -68,6 +68,7 @@ from app.routers import (
     jobs,
     session,
     dedup,
+    attributes,
 )
 
 app.include_router(dataset.router)
@@ -85,6 +86,7 @@ app.include_router(tasks.router)
 app.include_router(jobs.router)
 app.include_router(session.router)
 app.include_router(dedup.router)
+app.include_router(attributes.router)
 
 
 @app.get("/health")

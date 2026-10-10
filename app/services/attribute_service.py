@@ -102,3 +102,9 @@ def index_for_filename(session, filename: str) -> int | None:
         return ds.find_index(os.path.join(ds.base_dir, filename))
     except ValueError:
         return None
+
+
+async def run_classification(session, task_id: str, tagger: str, only_missing: bool) -> None:
+    from app.services import task_service
+
+    task_service.complete_task(task_id)

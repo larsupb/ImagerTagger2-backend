@@ -75,3 +75,9 @@ def test_parse_out_of_vocab_and_no_json():
     assert parsed == {"framing": "close_up"}
     parsed, _ = parse_attributes_response("the image shows a cat")
     assert parsed == {}
+
+
+def test_parse_string_has_person_is_not_true():
+    parsed, has_person = parse_attributes_response('{"has_person": "false", "shot_type": "selfie"}')
+    assert has_person is False
+    assert parsed == {"shot_type": "selfie"}

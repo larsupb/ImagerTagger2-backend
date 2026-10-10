@@ -151,7 +151,7 @@ def parse_attributes_response(raw: str) -> tuple[dict, bool]:
         return {}, False
     if not isinstance(data, dict):
         return {}, False
-    has_person = bool(data.get("has_person", False))
+    has_person = data.get("has_person") is True
     parsed, _ = validate_attributes(
         {
             k: v

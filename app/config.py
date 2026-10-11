@@ -28,6 +28,12 @@ DEFAULTS = {
         "base_url": "http://localhost:11434/v1",
         "model": "qwen3:32b",
     },
+    "embedding_endpoint": {
+        "api_key": "",
+        "base_url": "http://localhost:11434/v1",
+        "model": "qwen3-embedding-8b",
+        "timeout": 120,
+    },
     "comfyui": {
         "url": "http://localhost:8188",
         "api_token": "",
@@ -93,24 +99,55 @@ def _deep_merge(base: dict, override: dict) -> None:
             base[key] = value
 
 
+def _settings_source(state_dict: dict = None) -> dict:
+    if state_dict:
+        config = state_dict.get("config")
+        if isinstance(config, dict) and config:
+            return config
+    return read_settings()
+
+
 def florence_settings(state_dict: dict = None) -> dict:
-    """Get florence tagger settings."""
-    return read_settings().get("florence_settings", DEFAULTS["florence_settings"])
+    return _settings_source(state_dict).get("florence_settings", DEFAULTS["florence_settings"])
 
 
 def vlm_endpoint_settings(state_dict: dict = None) -> dict:
-    """Get VLM endpoint settings for image tagging."""
-    return read_settings().get("vlm_endpoint", DEFAULTS["vlm_endpoint"])
+    return _settings_source(state_dict).get("vlm_endpoint", DEFAULTS["vlm_endpoint"])
 
 
 def ideogram_settings(state_dict=None) -> dict:
-    """Get Ideogram tagger settings."""
-    return read_settings().get("ideogram_settings", {"prompt": None})
+    return _settings_source(state_dict).get("ideogram_settings", {"prompt": None})
+
+
+OVERRIDABLE_KEYS = [
+    "florence_settings.prompt",
+    "vlm_endpoint.prompt",
+    "upscaler",
+    "upscale_target_megapixels",
+    "rembg.model",
+]
+
+
+def flatten_overridable(settings: dict) -> dict:
+    flat = {}
+    for path in OVERRIDABLE_KEYS:
+        parent, _, leaf = path.partition(".")
+        if leaf:
+            section = settings.get(parent)
+            flat[path] = section.get(leaf) if isinstance(section, dict) else None
+        else:
+            flat[path] = settings.get(path)
+    return flat
 
 
 def llm_endpoint_settings() -> dict:
     """Get LLM endpoint settings for PromptGen."""
     return read_settings().get("llm_endpoint", DEFAULTS["llm_endpoint"])
+
+
+def embedding_endpoint_settings() -> dict:
+    """Get OpenAI-compatible embedding endpoint settings."""
+    return read_settings().get("embedding_endpoint", DEFAULTS["embedding_endpoint"])
 
 
 def combo_taggers(state_dict: dict = None) -> list:

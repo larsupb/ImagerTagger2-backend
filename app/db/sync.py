@@ -2,16 +2,41 @@ import json
 import logging
 import os
 
+from PIL import Image
+
 from app.db.repository import ImageRepository, CaptionRepository
 
 logger = logging.getLogger(__name__)
 
 
+def _file_meta(media_path: str) -> tuple:
+    try:
+        file_size = os.path.getsize(media_path)
+    except OSError:
+        return None, None, None
+    width = height = None
+    try:
+        with Image.open(media_path) as img:
+            width, height = img.size
+    except Exception:
+        pass
+    return width, height, file_size
+
+
 def sync_db_with_filesystem(db, dataset) -> dict:
     existing_filenames = ImageRepository.get_all_filenames(db)
+    # rows created before metadata was populated at sync time; file_size is the
+    # durable marker since videos legitimately keep width/height NULL
+    missing_meta = {
+        r["filename"]: r["id"]
+        for r in db.execute(
+            "SELECT id, filename FROM images WHERE file_size IS NULL"
+        ).fetchall()
+    }
     dataset_filenames = set()
     added = 0
     removed = 0
+    backfilled = 0
 
     for i in range(len(dataset)):
         item = dataset.get_item(i)
@@ -21,9 +46,18 @@ def sync_db_with_filesystem(db, dataset) -> dict:
         dataset_filenames.add(rel_path)
 
         if rel_path not in existing_filenames:
-            image_id = ImageRepository.ensure_image(db, rel_path)
+            width, height, file_size = _file_meta(item.media_path)
+            image_id = ImageRepository.ensure_image(
+                db, rel_path, width=width, height=height, file_size=file_size
+            )
             _import_caption_file(db, image_id, item)
             added += 1
+        elif rel_path in missing_meta:
+            width, height, file_size = _file_meta(item.media_path)
+            ImageRepository.update_metadata(
+                db, missing_meta[rel_path], width=width, height=height, file_size=file_size
+            )
+            backfilled += 1
 
     stale = existing_filenames - dataset_filenames
     for filename in stale:
@@ -33,7 +67,8 @@ def sync_db_with_filesystem(db, dataset) -> dict:
     _import_bookmarks(db, dataset)
 
     logger.info(
-        f"DB sync: {added} added, {removed} removed, {len(dataset_filenames)} total"
+        f"DB sync: {added} added, {removed} removed, {backfilled} backfilled, "
+        f"{len(dataset_filenames)} total"
     )
     return {"added": added, "removed": removed, "total": len(dataset_filenames)}
 

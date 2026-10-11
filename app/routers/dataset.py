@@ -5,8 +5,9 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from app.sessions import Session, get_session, session_manager
-from app.db.repository import ImageRepository, CaptionRepository, CategoryRepository
+from app.db.repository import ImageRepository, CaptionRepository, CategoryRepository, AttributeRepository
 from app.models.schemas import (
+    BulkDeleteRequest,
     DatasetLoadRequest,
     DatasetInfo,
     MediaItemResponse,
@@ -111,6 +112,7 @@ def gallery(
     )
 
     items = []
+    row_ids: dict[int, int] = {}
     for i in range(start, end):
         item = ds.get_item(i)
         rel_path = os.path.relpath(item.media_path, ds.base_dir)
@@ -122,6 +124,8 @@ def gallery(
             if session.db
             else None
         )
+        if img_row:
+            row_ids[i] = img_row["id"]
         has_caption = False
         if img_row:
             captions = CaptionRepository.get_all_for_image(session.db, img_row["id"])
@@ -139,6 +143,11 @@ def gallery(
                 category=category_map.get(rel_path),
             )
         )
+
+    if session.db and row_ids:
+        attrs_map = AttributeRepository.get_for_image_ids(session.db, list(row_ids.values()))
+        for gallery_index, row_id in row_ids.items():
+            items[gallery_index - start].attributes = attrs_map.get(row_id, {})
 
     return GalleryResponse(items=items, total=len(ds), page=page, page_size=page_size)
 
@@ -170,6 +179,31 @@ def delete_item(index: int, session: Session = Depends(get_session)):
         ImageRepository.delete_by_filename(session.db, rel_path)
     ds.delete_item(index)
     return {"total_items": len(ds)}
+
+
+@router.delete("/items/bulk")
+def delete_items(req: BulkDeleteRequest, session: Session = Depends(get_session)):
+    ds = session.dataset
+    if ds is None:
+        raise HTTPException(400, "No dataset loaded")
+
+    invalid = [i for i in req.indices if i < 0 or i >= len(ds)]
+    if invalid:
+        raise HTTPException(400, f"Invalid indices: {invalid[:3]}")
+
+    deleted = 0
+    # Descending order so deletions do not shift the indices still to be removed
+    for index in sorted(set(req.indices), reverse=True):
+        item = ds.get_item(index)
+        if item is None:
+            continue
+        rel_path = os.path.relpath(item.media_path, ds.base_dir)
+        if ds.delete_item(index):
+            deleted += 1
+            if session.db:
+                ImageRepository.delete_by_filename(session.db, rel_path)
+
+    return {"deleted": deleted, "total_items": len(ds)}
 
 
 @router.post("/upload")

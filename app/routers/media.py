@@ -2,6 +2,8 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+# module-level on purpose: tests/test_export.py swaps app.db.repository in sys.modules at collection time; function-local imports would resolve the mock
+from app.db.repository import ImageRepository
 from app.sessions import Session, get_session_flexible
 
 router = APIRouter(prefix="/api/media", tags=["media"])
@@ -94,3 +96,39 @@ def serve_mask(index: int, session: Session = Depends(get_session_flexible)):
     if not item.mask_exists():
         raise HTTPException(404, "Mask file not found")
     return FileResponse(item.mask_path, media_type="image/png")
+
+
+@router.get("/by-id/{image_id}")
+def serve_media_by_id(image_id: int, session: Session = Depends(get_session_flexible)):
+    if session.db is None:
+        raise HTTPException(400, "No project database open")
+    if session.dataset is None:
+        raise HTTPException(400, "No dataset loaded")
+    row = ImageRepository.get_by_id(session.db, image_id)
+    if row is None:
+        raise HTTPException(404, "Image not found")
+    try:
+        index = session.dataset.find_index(
+            os.path.join(session.dataset.base_dir, row["filename"])
+        )
+    except ValueError:
+        raise HTTPException(404, "Image not in current dataset")
+    return serve_media(index, session)
+
+
+@router.get("/thumbnail-by-id/{image_id}")
+def serve_thumbnail_by_id(image_id: int, session: Session = Depends(get_session_flexible)):
+    if session.db is None:
+        raise HTTPException(400, "No project database open")
+    if session.dataset is None:
+        raise HTTPException(400, "No dataset loaded")
+    row = ImageRepository.get_by_id(session.db, image_id)
+    if row is None:
+        raise HTTPException(404, "Image not found")
+    try:
+        index = session.dataset.find_index(
+            os.path.join(session.dataset.base_dir, row["filename"])
+        )
+    except ValueError:
+        raise HTTPException(404, "Image not in current dataset")
+    return serve_thumbnail(index, session)

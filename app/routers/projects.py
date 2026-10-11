@@ -24,9 +24,10 @@ from app.services.project_service import (
     read_project_config,
     update_project_config,
     get_effective_settings,
+    find_registry_entry,
 )
 from app.services.dataset_service import load_dataset
-from app.config import read_settings
+from app.config import flatten_overridable, read_settings
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -180,6 +181,28 @@ def recent_projects(limit: int = 10):
     return RecentProjectsResponse(projects=projects)
 
 
+def _config_response(path: str) -> ProjectConfigResponse:
+    config = read_project_config(path) or {}
+    return ProjectConfigResponse(
+        name=config.get("name", os.path.basename(path)),
+        settings_overrides=config.get("settings_overrides", {}),
+        last_opened=config.get("last_opened", ""),
+        version=config.get("version", 1),
+        settings={
+            "global": flatten_overridable(read_settings()),
+            "effective": flatten_overridable(get_effective_settings(path)),
+        },
+    )
+
+
+@router.get("/{project_id}/config", response_model=ProjectConfigResponse)
+def get_project_configuration(project_id: str):
+    entry = find_registry_entry(project_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return _config_response(entry["path"])
+
+
 @router.put("/{project_id}/config", response_model=ProjectConfigResponse)
 def update_project_configuration(project_id: str, req: ProjectConfigUpdateRequest):
     """Update project configuration."""
@@ -193,7 +216,7 @@ def update_project_configuration(project_id: str, req: ProjectConfigUpdateReques
     if project_entry is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    config = update_project_config(
+    update_project_config(
         project_entry["path"],
         name=req.name,
         settings_overrides=req.settings_overrides,
@@ -207,12 +230,7 @@ def update_project_configuration(project_id: str, req: ProjectConfigUpdateReques
             if session:
                 session.config = get_effective_settings(project_entry["path"])
 
-    return ProjectConfigResponse(
-        name=config["name"],
-        settings_overrides=config.get("settings_overrides", {}),
-        last_opened=config["last_opened"],
-        version=config.get("version", 1),
-    )
+    return _config_response(project_entry["path"])
 
 
 @router.delete("/recent/{project_id}")

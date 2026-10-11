@@ -59,12 +59,9 @@ class SessionManager:
 
     def delete(self, session_id: str):
         with self._lock:
-            session = self._sessions.pop(session_id, None)
-            if session and session.db:
-                try:
-                    session.db.close()
-                except Exception:
-                    pass
+            # deliberately not closing session.db: background tasks keep the
+            # connection alive until they finish; GC closes it with the session
+            self._sessions.pop(session_id, None)
 
     def cleanup_all(self):
         with self._lock:
@@ -80,12 +77,7 @@ class SessionManager:
         with self._lock:
             expired = [sid for sid, s in self._sessions.items() if s.is_expired]
             for sid in expired:
-                session = self._sessions[sid]
-                if session.db:
-                    try:
-                        session.db.close()
-                    except Exception:
-                        pass
+                # see delete(): running jobs may still hold this connection
                 del self._sessions[sid]
 
     def list_active(self) -> list[dict]:

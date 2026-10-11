@@ -235,6 +235,14 @@ class VersionRepository:
         return [dict(r) for r in rows]
 
     @staticmethod
+    def get_oldest_for_image(db: sqlite3.Connection, image_id: int) -> Optional[dict]:
+        row = db.execute(
+            "SELECT * FROM image_versions WHERE image_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
+            (image_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
     def get_by_id(db: sqlite3.Connection, version_id: int) -> Optional[dict]:
         row = db.execute(
             "SELECT * FROM image_versions WHERE id = ?", (version_id,)
@@ -244,6 +252,11 @@ class VersionRepository:
     @staticmethod
     def delete(db: sqlite3.Connection, version_id: int) -> None:
         db.execute("DELETE FROM image_versions WHERE id = ?", (version_id,))
+        db.commit()
+
+    @staticmethod
+    def delete_for_image(db: sqlite3.Connection, image_id: int) -> None:
+        db.execute("DELETE FROM image_versions WHERE image_id = ?", (image_id,))
         db.commit()
 
 
@@ -298,3 +311,123 @@ class CategoryRepository:
         else:
             db.execute("UPDATE images SET category_id = NULL WHERE id = ?", (image_id,))
         db.commit()
+
+
+class AttributeRepository:
+    """Per-image categorical attributes stored in the metadata KV table."""
+
+    @staticmethod
+    def set(db: sqlite3.Connection, image_id: int, key: str, value: str) -> None:
+        db.execute(
+            "INSERT INTO metadata (image_id, key, value) VALUES (?, ?, ?)"
+            " ON CONFLICT(image_id, key) DO UPDATE SET value = excluded.value",
+            (image_id, key, value),
+        )
+        db.commit()
+
+    @staticmethod
+    def unset(db: sqlite3.Connection, image_id: int, key: str) -> None:
+        db.execute(
+            "DELETE FROM metadata WHERE image_id = ? AND key = ?", (image_id, key)
+        )
+        db.commit()
+
+    @staticmethod
+    def set_many(db: sqlite3.Connection, image_id: int, attributes: dict) -> None:
+        for key, value in attributes.items():
+            if value is None:
+                db.execute(
+                    "DELETE FROM metadata WHERE image_id = ? AND key = ?",
+                    (image_id, key),
+                )
+            else:
+                db.execute(
+                    "INSERT INTO metadata (image_id, key, value) VALUES (?, ?, ?)"
+                    " ON CONFLICT(image_id, key) DO UPDATE SET value = excluded.value",
+                    (image_id, key, value),
+                )
+        db.commit()
+
+    @staticmethod
+    def get_for_image(db: sqlite3.Connection, image_id: int) -> dict:
+        rows = db.execute(
+            "SELECT key, value FROM metadata WHERE image_id = ?", (image_id,)
+        ).fetchall()
+        return {row["key"]: row["value"] for row in rows}
+
+    @staticmethod
+    def get_for_image_ids(db: sqlite3.Connection, image_ids: list[int]) -> dict[int, dict]:
+        if not image_ids:
+            return {}
+        placeholders = ", ".join("?" * len(image_ids))
+        rows = db.execute(
+            f"SELECT image_id, key, value FROM metadata WHERE image_id IN ({placeholders})",
+            image_ids,
+        ).fetchall()
+        result: dict[int, dict] = {}
+        for row in rows:
+            result.setdefault(row["image_id"], {})[row["key"]] = row["value"]
+        return result
+
+    @staticmethod
+    def get_all_rows(db: sqlite3.Connection) -> list[tuple]:
+        rows = db.execute(
+            "SELECT key, value, COUNT(*) AS n FROM metadata"
+            " GROUP BY key, value ORDER BY key, value"
+        ).fetchall()
+        return [(row["key"], row["value"], row["n"]) for row in rows]
+
+    @staticmethod
+    def get_filenames_with_attributes(db: sqlite3.Connection) -> dict[str, dict]:
+        rows = db.execute(
+            "SELECT i.filename, m.key, m.value FROM metadata m JOIN images i ON m.image_id = i.id"
+        ).fetchall()
+        result: dict[str, dict] = {}
+        for row in rows:
+            result.setdefault(row["filename"], {})[row["key"]] = row["value"]
+        return result
+
+
+class VectorRepository:
+    """Caption embedding vectors (one L2-normalized float32 blob per image)."""
+
+    @staticmethod
+    def upsert(db: sqlite3.Connection, image_id: int, model: str, dim: int,
+               embedding: bytes, text_hash: str) -> None:
+        db.execute(
+            "INSERT INTO caption_vectors (image_id, model, dim, embedding, text_hash)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT(image_id) DO UPDATE SET model = excluded.model,"
+            " dim = excluded.dim, embedding = excluded.embedding,"
+            " text_hash = excluded.text_hash, updated_at = datetime('now')",
+            (image_id, model, dim, embedding, text_hash),
+        )
+
+    @staticmethod
+    def load_all(db: sqlite3.Connection) -> list[sqlite3.Row]:
+        return db.execute(
+            "SELECT image_id, model, dim, embedding, updated_at FROM caption_vectors"
+        ).fetchall()
+
+    @staticmethod
+    def hashes(db: sqlite3.Connection) -> dict[int, tuple[str, str]]:
+        return {
+            r["image_id"]: (r["model"], r["text_hash"])
+            for r in db.execute("SELECT image_id, model, text_hash FROM caption_vectors")
+        }
+
+    @staticmethod
+    def delete_missing(db: sqlite3.Connection, keep_ids: set[int]) -> int:
+        removed = 0
+        for r in db.execute("SELECT image_id FROM caption_vectors").fetchall():
+            if r["image_id"] not in keep_ids:
+                db.execute("DELETE FROM caption_vectors WHERE image_id = ?", (r["image_id"],))
+                removed += 1
+        return removed
+
+    @staticmethod
+    def revision(db: sqlite3.Connection) -> tuple[int, str]:
+        r = db.execute(
+            "SELECT COUNT(*) c, COALESCE(MAX(updated_at), '') m FROM caption_vectors"
+        ).fetchone()
+        return r["c"], r["m"]

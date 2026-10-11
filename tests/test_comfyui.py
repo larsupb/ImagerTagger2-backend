@@ -96,32 +96,40 @@ def test_inject_params():
     from lib.comfyui.workflow import inject_image, inject_params, get_workflow
 
     workflow = get_workflow("image_enhance.json")
-    params = {"denoise": 0.5, "steps": 10, "seed": 42}
+    injections = [
+        {"node_id": "158:77", "input_name": "denoise", "value": 0.5},
+        {"node_id": "158:77", "input_name": "steps", "value": 10},
+        {"node_id": "158:77", "input_name": "seed", "value": 42},
+    ]
     result = inject_image(workflow, "test.jpg", target_megapixels=1.0, input_width=512, input_height=512)
 
-    params_result = inject_params(result, params)
+    params_result = inject_params(result, injections)
 
-    sampler_found = False
-    for node_id, node in params_result.items():
-        if isinstance(node, dict) and node.get("class_type") == "KSampler":
-            sampler_found = True
-            assert node["inputs"]["denoise"] == 0.5, f"denoise={node['inputs']['denoise']}, expected 0.5"
-            assert node["inputs"]["steps"] == 10, f"steps={node['inputs']['steps']}, expected 10"
-            assert node["inputs"]["seed"] == 42, f"seed={node['inputs']['seed']}, expected 42"
-    assert sampler_found, "No KSampler node found"
+    sampler = params_result["158:77"]
+    assert sampler.get("class_type") == "KSampler"
+    assert sampler["inputs"]["denoise"] == 0.5, f"denoise={sampler['inputs']['denoise']}, expected 0.5"
+    assert sampler["inputs"]["steps"] == 10, f"steps={sampler['inputs']['steps']}, expected 10"
+    assert sampler["inputs"]["seed"] == 42, f"seed={sampler['inputs']['seed']}, expected 42"
 
 
 def test_inject_params_text():
-    """Test that text params are injected into PrimitiveStringMultiline nodes."""
+    """Text params target individual PrimitiveStringMultiline nodes that share
+    the 'value' input name, so each must be set independently."""
     from lib.comfyui.workflow import inject_image, inject_params, get_workflow
 
     workflow = get_workflow("image_enhance.json")
-    params = {"value": "enhance details, sharpen features"}
+    injections = [
+        {"node_id": "150", "input_name": "value", "value": "enhance details"},
+        {"node_id": "151", "input_name": "value", "value": "sharpen features"},
+    ]
     result = inject_image(workflow, "test.jpg", target_megapixels=1.0, input_width=512, input_height=512)
 
-    params_result = inject_params(result, params)
+    params_result = inject_params(result, injections)
 
-    assert params_result["150"]["inputs"]["value"] == "enhance details, sharpen features"
+    assert params_result["150"]["inputs"]["value"] == "enhance details"
+    assert params_result["151"]["inputs"]["value"] == "sharpen features"
+    # 152 was not targeted, so it keeps its workflow-file default
+    assert params_result["152"]["inputs"]["value"] != "enhance details"
 
 
 if __name__ == "__main__":

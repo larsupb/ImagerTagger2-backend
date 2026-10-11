@@ -2,7 +2,8 @@ import os
 import zipfile
 import tempfile
 import shutil
-from typing import Optional
+from collections import OrderedDict
+from typing import Callable, Optional
 from PIL import Image
 
 from app.sessions import Session
@@ -56,13 +57,23 @@ class ExportOptions:
         self.categories = categories
 
 
-def export_dataset(session: Session, options: ExportOptions) -> str:
+ProgressCallback = Callable[[int, str, str], bool]
+
+
+def export_dataset(
+    session: Session,
+    options: ExportOptions,
+    on_progress: Optional[ProgressCallback] = None,
+) -> str:
     """
     Export dataset to standard format.
 
     Creates:
     - output_dir/img/ with images and .txt caption files
     - output_dir/masks/ with mask files (if exist)
+
+    on_progress is called once per dataset item with (index, filename, message);
+    returning False aborts the export and leaves a partial output directory.
 
     Returns path to output directory.
     """
@@ -91,11 +102,18 @@ def export_dataset(session: Session, options: ExportOptions) -> str:
             options.bucket_max_steps,
         )
 
+    def report(index: int, filename: str, message: str) -> bool:
+        return True if on_progress is None else on_progress(index, filename, message)
+
     total = len(ds)
     for i in range(total):
         item = ds.get_item(i)
         if item is None:
+            if not report(i, "", "Skipped (item missing)"):
+                break
             continue
+
+        filename = os.path.basename(item.media_path)
 
         if options.categories is not None:
             rel_path = os.path.relpath(item.media_path, ds.base_dir)
@@ -103,8 +121,12 @@ def export_dataset(session: Session, options: ExportOptions) -> str:
             category = CategoryRepository.get_for_image(session.db, img_row["id"]) if img_row else None
             if category not in options.categories:
                 if category is None and "Uncategorized" not in options.categories:
+                    if not report(i, filename, "Skipped (uncategorized)"):
+                        break
                     continue
                 elif category is not None:
+                    if not report(i, filename, "Skipped (category)"):
+                        break
                     continue
 
         new_filename = f"{i:05d}"
@@ -154,6 +176,9 @@ def export_dataset(session: Session, options: ExportOptions) -> str:
                 mask_path = os.path.join(masks_dir, f"{new_filename}.png")
                 mask.save(mask_path, format="PNG")
 
+        if not report(i, filename, f"Exported as {new_filename}"):
+            break
+
     if options.format == "musubi_control":
         toml_path = os.path.join(output_dir, "dataset_config.toml")
         with open(toml_path, "w", encoding="utf-8") as f:
@@ -175,6 +200,42 @@ def create_zip_archive(source_dir: str, zip_path: str) -> str:
                 arcname = os.path.relpath(file_path, source_dir)
                 zipf.write(file_path, arcname)
     return zip_path
+
+
+MAX_RETAINED_ARCHIVES = 5
+
+_archives: "OrderedDict[str, str]" = OrderedDict()
+
+
+def create_archive(source_dir: str, filename: str) -> str:
+    """Zip source_dir into its own temp directory, so archives never collide."""
+    archive_dir = tempfile.mkdtemp(prefix="imagetagger_archive_")
+    zip_path = os.path.join(archive_dir, filename)
+    try:
+        create_zip_archive(source_dir, zip_path)
+    except Exception:
+        shutil.rmtree(archive_dir, ignore_errors=True)
+        raise
+    return zip_path
+
+
+def store_archive(task_id: str, zip_path: str) -> None:
+    """Keep the newest archives only; older ones are deleted from temp."""
+    _archives[task_id] = zip_path
+    while len(_archives) > MAX_RETAINED_ARCHIVES:
+        _, evicted_path = _archives.popitem(last=False)
+        shutil.rmtree(os.path.dirname(evicted_path), ignore_errors=True)
+
+
+def get_archive(task_id: str) -> Optional[str]:
+    return _archives.get(task_id)
+
+
+def discard_archives() -> None:
+    """Drop every archive; called on shutdown so no export zips outlive the server."""
+    while _archives:
+        _, zip_path = _archives.popitem()
+        shutil.rmtree(os.path.dirname(zip_path), ignore_errors=True)
 
 
 def cleanup_export_dir(output_dir: str):

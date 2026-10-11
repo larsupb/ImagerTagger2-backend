@@ -63,9 +63,14 @@ def _migrate_v1_to_v2(db) -> None:
         pass
 
 
+def _migrate_v2_to_v3(db) -> None:
+    create_schema(db)
+
+
 def _run_migrations(db, from_version: int) -> None:
     migrations = {
         1: _migrate_v1_to_v2,
+        2: _migrate_v2_to_v3,
     }
     for v in range(from_version, SCHEMA_VERSION):
         if v in migrations:

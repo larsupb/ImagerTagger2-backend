@@ -64,7 +64,7 @@
         "node_id": "158:77",
         "input_name": "sampler_name",
         "default": "euler",
-        "options": ["euler", "euler_ancestral", "dpmpp_3m_sde", "dpmpp_2m", "dpmpp_2m_sde", "heun", "dpm_2", "dpm_2_ancestral", " LMS", "LMS Karras", "dpm_fast", "dpm_adaptive", "dpmpp_2m_karras", "dpmpp_3m_sde_karras", "unipc", "unipc"]
+        "options": ["euler", "euler_ancestral", "dpmpp_3m_sde", "dpmpp_2m", "dpmpp_2m_sde", "heun", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "uni_pc", "res_2s"]
       },
       {
         "key": "scheduler",
@@ -73,7 +73,7 @@
         "node_id": "158:77",
         "input_name": "scheduler",
         "default": "simple",
-        "options": ["simple", "karras", "exponential", "normal", "exponential_int", "simple_beta", "simple_quad", "simple_cubic", "linear_quad", "normal_beta", "karras_beta", "exponential_beta", "simple_offset_noise", "vp_beta", "sgm_uniform"]
+        "options": ["simple", "karras", "exponential", "normal", "sgm_uniform"]
       },
       {
         "key": "enhance_instruction",

@@ -101,6 +101,14 @@ def get_or_create_registry_entry(path: str, name: Optional[str] = None) -> dict:
     return new_entry
 
 
+def find_registry_entry(project_id: str) -> Optional[dict]:
+    registry = _read_registry()
+    for entry in registry["projects"]:
+        if entry["project_id"] == project_id:
+            return entry
+    return None
+
+
 def remove_from_registry(project_id: str) -> bool:
     """Remove project from registry. Returns True if found and removed."""
     registry = _read_registry()

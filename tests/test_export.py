@@ -1,13 +1,7 @@
 import json
 import os
-import sys
 
-from unittest.mock import MagicMock
 from PIL import Image
-
-sys.modules["app.sessions"] = MagicMock()
-sys.modules["app.db.repository"] = MagicMock()
-sys.modules["lib.bucketing"] = MagicMock()
 
 
 class FakeItem:

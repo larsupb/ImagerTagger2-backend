@@ -11,6 +11,10 @@ class DatasetLoadRequest(BaseModel):
     include_subdirectories: bool = False
 
 
+class BulkDeleteRequest(BaseModel):
+    indices: list[int]
+
+
 class DatasetInfo(BaseModel):
     total_items: int
     base_dir: str
@@ -77,6 +81,7 @@ class ExportCaptionsTxtRequest(BaseModel):
 class CaptionGenerateRequest(BaseModel):
     index: int
     tagger: str
+    prompt: str | None = None
 
 
 class CaptionGenerateResponse(BaseModel):
@@ -157,6 +162,9 @@ class ComfyUIUpscaleRequest(BaseModel):
 
 # --- Batch ---
 class BatchProcessRequest(BaseModel):
+    indices: Optional[list[int]] = None
+    prompt: Optional[str] = None
+    revert_original: bool = False
     rename: bool = False
     rename_offset: int = 0
     upscale: bool = False
@@ -169,6 +177,8 @@ class BatchProcessRequest(BaseModel):
     unified_caption: str = ""
     caption_type: str = "tags"
     skip_existing_captions: bool = False
+    classify_attributes: bool = False
+    embed_captions: bool = False
     vlm_prompt: Optional[str] = None
     bucket_resolution: int = 1024
     bucket_step: int = 128
@@ -261,6 +271,7 @@ class GalleryItem(BaseModel):
     width: int | None = None
     height: int | None = None
     category: str | None = None
+    attributes: dict[str, str] = {}
 
 
 class GalleryResponse(BaseModel):
@@ -274,6 +285,7 @@ class GalleryResponse(BaseModel):
 class TaskStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -287,13 +299,17 @@ class TaskLogEntry(BaseModel):
 
 class TaskResponse(BaseModel):
     task_id: str
+    name: str = "Batch"
+    operation: str = "batch"
+    project_name: Optional[str] = None
     status: TaskStatus
     progress: float
     current_index: int
     current_filename: Optional[str] = None
     total: int
     logs: list[TaskLogEntry]
-    started_at: datetime
+    created_at: datetime
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error: Optional[str] = None
 

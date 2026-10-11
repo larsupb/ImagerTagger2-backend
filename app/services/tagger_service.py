@@ -11,6 +11,6 @@ def generate_caption(
 ) -> str:
     from lib.captioning import generate_caption as gen_caption
 
-    state_dict = {"dataset": session.dataset}
+    state_dict = {"dataset": session.dataset, "config": session.config}
     caption = gen_caption(index, tagger, state_dict, prompt=prompt)
     return caption or ""

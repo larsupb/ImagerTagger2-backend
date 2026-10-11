@@ -67,7 +67,7 @@ async def batch_process(
         raise HTTPException(400, "No dataset loaded")
 
     ds = session.dataset
-    settings = read_settings()
+    settings = session.config or read_settings()
 
     buckets = None
     bucket_map = None
@@ -211,7 +211,10 @@ async def batch_process(
                             from lib.tagging.openai_tagger import generate_vlm_caption
                             from app.config import vlm_endpoint_settings
 
-                            vlm_settings = {**vlm_endpoint_settings(), "prompt": prompt}
+                            vlm_settings = {
+                                **(session.config.get("vlm_endpoint") or vlm_endpoint_settings()),
+                                "prompt": prompt,
+                            }
                             caption = await asyncio.to_thread(
                                 generate_vlm_caption,
                                 item.media_path,
@@ -224,7 +227,7 @@ async def batch_process(
                                 gen_caption,
                                 i,
                                 tagger_name,
-                                {"dataset": session.dataset},
+                                {"dataset": session.dataset, "config": session.config},
                                 prompt,
                             )
                         db_save_caption(session, i, caption, req.caption_type or "tags")

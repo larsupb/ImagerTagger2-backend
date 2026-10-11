@@ -46,7 +46,7 @@ def upscale_image(
 ) -> str:
     ds = session.dataset
     item = ds.get_item(index)
-    settings = read_settings()
+    settings = session.config or read_settings()
 
     upscaler = upscaler_name or settings.get("upscaler", "NMKD_Siax_200k_4x")
     target_mp = target_megapixels or settings.get("upscale_target_megapixels", 2.0)
@@ -99,7 +99,7 @@ def remove_background(session: Session, index: int, model: str | None = None) ->
 
     ds = session.dataset
     item = ds.get_item(index)
-    settings = read_settings()
+    settings = session.config or read_settings()
     model_name = (
         model if model else settings.get("rembg", {}).get("model", "u2net_human_seg")
     )
@@ -129,7 +129,7 @@ def generate_mask(session: Session, index: int) -> str:
 
     ds = session.dataset
     item = ds.get_item(index)
-    settings = read_settings()
+    settings = session.config or read_settings()
     model_name = settings.get("rembg", {}).get("model", "u2net_human_seg")
 
     img = Image.open(item.media_path)

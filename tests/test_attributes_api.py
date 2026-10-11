@@ -107,6 +107,8 @@ def test_query_and_media_by_id(client, dataset):
     item = body["items"][0]
     assert item["filename"] == "img0.png"
     assert item["index"] == 0
+    assert item["width"] == 8 and item["height"] == 8
+    assert item["file_size"] > 0
     assert item["attributes"] == {"shot_type": "selfie", "pose": "walking"}
     assert item["category"] is None
 

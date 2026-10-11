@@ -99,19 +99,24 @@ def _deep_merge(base: dict, override: dict) -> None:
             base[key] = value
 
 
+def _settings_source(state_dict: dict = None) -> dict:
+    if state_dict:
+        config = state_dict.get("config")
+        if isinstance(config, dict) and config:
+            return config
+    return read_settings()
+
+
 def florence_settings(state_dict: dict = None) -> dict:
-    """Get florence tagger settings."""
-    return read_settings().get("florence_settings", DEFAULTS["florence_settings"])
+    return _settings_source(state_dict).get("florence_settings", DEFAULTS["florence_settings"])
 
 
 def vlm_endpoint_settings(state_dict: dict = None) -> dict:
-    """Get VLM endpoint settings for image tagging."""
-    return read_settings().get("vlm_endpoint", DEFAULTS["vlm_endpoint"])
+    return _settings_source(state_dict).get("vlm_endpoint", DEFAULTS["vlm_endpoint"])
 
 
 def ideogram_settings(state_dict=None) -> dict:
-    """Get Ideogram tagger settings."""
-    return read_settings().get("ideogram_settings", {"prompt": None})
+    return _settings_source(state_dict).get("ideogram_settings", {"prompt": None})
 
 
 def llm_endpoint_settings() -> dict:

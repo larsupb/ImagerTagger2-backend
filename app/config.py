@@ -119,6 +119,27 @@ def ideogram_settings(state_dict=None) -> dict:
     return _settings_source(state_dict).get("ideogram_settings", {"prompt": None})
 
 
+OVERRIDABLE_KEYS = [
+    "florence_settings.prompt",
+    "vlm_endpoint.prompt",
+    "upscaler",
+    "upscale_target_megapixels",
+    "rembg.model",
+]
+
+
+def flatten_overridable(settings: dict) -> dict:
+    flat = {}
+    for path in OVERRIDABLE_KEYS:
+        parent, _, leaf = path.partition(".")
+        if leaf:
+            section = settings.get(parent)
+            flat[path] = section.get(leaf) if isinstance(section, dict) else None
+        else:
+            flat[path] = settings.get(path)
+    return flat
+
+
 def llm_endpoint_settings() -> dict:
     """Get LLM endpoint settings for PromptGen."""
     return read_settings().get("llm_endpoint", DEFAULTS["llm_endpoint"])

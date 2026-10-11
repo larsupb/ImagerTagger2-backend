@@ -67,3 +67,4 @@ class ProjectConfigResponse(BaseModel):
     settings_overrides: dict
     last_opened: str
     version: int
+    settings: dict = {}

@@ -87,3 +87,30 @@ def test_tagging_generate_receives_project_config(client, dataset, monkeypatch):
     vlm = captured["state_dict"]["config"]["vlm_endpoint"]
     assert vlm["prompt"] == "PROJECT PROMPT"
     assert vlm["base_url"]
+
+
+def test_project_config_roundtrip(client, dataset):
+    pid = dataset["project_id"]
+    base = client.get(f"/api/projects/{pid}/config").json()
+    assert base["settings"]["global"]["vlm_endpoint.prompt"] == \
+        base["settings"]["effective"]["vlm_endpoint.prompt"]
+    for key in ("florence_settings.prompt", "upscaler",
+                "upscale_target_megapixels", "rembg.model"):
+        assert key in base["settings"]["global"]
+
+    overrides = dict(base["settings_overrides"])
+    overrides["vlm_endpoint"] = {"prompt": "PROJ"}
+    client.put(f"/api/projects/{pid}/config", json={"settings_overrides": overrides})
+    after = client.get(f"/api/projects/{pid}/config").json()
+    assert after["settings"]["effective"]["vlm_endpoint.prompt"] == "PROJ"
+    assert after["settings"]["effective"]["florence_settings.prompt"] == \
+        base["settings"]["global"]["florence_settings.prompt"]
+
+    client.put(f"/api/projects/{pid}/config", json={"settings_overrides": base["settings_overrides"]})
+    back = client.get(f"/api/projects/{pid}/config").json()
+    assert back["settings"]["effective"]["vlm_endpoint.prompt"] == \
+        back["settings"]["global"]["vlm_endpoint.prompt"]
+
+
+def test_project_config_unknown_id_404(client):
+    assert client.get("/api/projects/nope-nope/config").status_code == 404

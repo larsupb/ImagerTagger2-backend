@@ -262,6 +262,25 @@ def test_classify_single_index_empty_after_retry_is_failure(client, dataset, mon
     assert stored["attributes"] == {}
 
 
+def test_classify_survives_project_close(client, dataset, monkeypatch):
+    good = _json.dumps({"has_person": True, "shot_type": "selfie"})
+
+    def slow_generate(index, tagger, state_dict, prompt=None):
+        time.sleep(0.2)
+        return good
+
+    monkeypatch.setattr("lib.captioning.generate_caption", slow_generate)
+    response = client.post("/api/attributes/classify?tagger=vlm-tagger", headers=dataset["headers"])
+    task_id = response.json()["task_id"]
+    for _ in range(100):
+        if client.get(f"/api/tasks/{task_id}").json()["progress"] >= 1 / 3:
+            break
+        time.sleep(0.05)
+    client.delete(f"/api/projects/{dataset['session_id']}")
+    status = _wait_task(client, task_id, dataset["headers"])
+    assert status["status"] == "completed", status.get("error")
+
+
 def test_gallery_returns_attributes(client, dataset):
     headers = dataset["headers"]
     client.put(
